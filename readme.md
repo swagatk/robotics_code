@@ -10,6 +10,8 @@
 
 
 ## Path planning Algorithms
-
+- Dijkstra Algorithm
+- A* Algorithm
+- Graph Visualization
 
 ## Inverse-kinematics
