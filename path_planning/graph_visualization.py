@@ -16,7 +16,7 @@ def show_wgraph(G, custom_node_positions=None, node_labels:dict=None):
     nx.draw(G,pos,font_color = 'white', node_shape = 's', with_labels = True,)
     output = nx.draw_networkx_edge_labels(G,pos,edge_labels=weight_labels)
     if node_labels!=None:
-        pos2 = {k:(v[0]+0.05,v[1]+0.05) for (k,v) in pos.items()}
+        pos2 = {k:(v[0]+0.1,v[1]+0.1) for (k,v) in pos.items()}
         nx.draw_networkx_labels(G, pos2, labels=node_labels, font_color='r')
 
     return plt
@@ -45,7 +45,7 @@ def show_wpath_d(G, from_node, to_node,custom_node_positions=None, node_labels=N
     nx.draw_networkx_edge_labels(G,pos,edge_labels=weight_labels)
 
     if node_labels != None:
-        pos2 = {k:(v[0]+0.05,v[1]+0.05) for (k,v) in pos.items()}
+        pos2 = {k:(v[0]+0.1,v[1]+0.1) for (k,v) in pos.items()}
         nx.draw_networkx_labels(G, pos2, labels=node_labels, font_color='r')
 
     return plt
@@ -73,15 +73,15 @@ def show_wpath(G, path, custom_node_positions=None, node_labels=None):
     nx.draw_networkx_edge_labels(G, pos, edge_labels=weight_labels)
 
     if node_labels is not None:
-        pos2 = {k: (v[0] + 0.05, v[1] + 0.05) for (k, v) in pos.items()}
+        pos2 = {k: (v[0] + 0.1, v[1] + 0.1) for (k, v) in pos.items()}
         nx.draw_networkx_labels(G, pos2, labels=node_labels, font_color='r')
 
     return plt
 
 # plot a maze and the path found
-def plot_maze(maze, path):
+def plot_maze(maze, path, algo='path'):
     plt.imshow(maze, cmap='binary')
-    plt.plot([x[1] for x in path], [x[0] for x in path], 'r', label='path')
+    plt.plot([x[1] for x in path], [x[0] for x in path], 'r', label=algo)
     start = path[0]
     end = path[-1]
     plt.plot(start[1], start[0], 'go', markersize=10, label='start')

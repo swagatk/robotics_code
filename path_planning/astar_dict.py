@@ -40,8 +40,8 @@ def astar(graph, heuristic, start_node, end_node):
 if __name__ == "__main__":
     my_graph = {
         'A': {'B':2, 'C':3},
-        'B': {'A':2, 'D':3, 'E':1},
-        'C': {'A':3, 'F':2},
+        'B': {'A':2, 'D':3, 'E':1, 'F':5},
+        'C': {'A':3, 'D':1, 'E':2, 'F':2},
         'D': {'B':3, 'E':1},
         'E': {'B':1, 'D':1, 'F':1},
         'F': {'C':2, 'E':1}
@@ -62,19 +62,21 @@ if __name__ == "__main__":
     # visualize the graph
     G = nx.Graph()
 
-nodes = list(my_graph.keys())
-weighted_edges = []
-for node, neighbors in my_graph.items():
-    for neighbor, weight in neighbors.items():
-        weighted_edges.append((node, neighbor, weight))
+    nodes = list(my_graph.keys())
+    weighted_edges = []
+    for node, neighbors in my_graph.items():
+        for neighbor, weight in neighbors.items():
+            weighted_edges.append((node, neighbor, weight))
 
-G.add_nodes_from(nodes)
-G.add_weighted_edges_from(weighted_edges)
+    node_pos = {'A':(1, 2), 'B':(2, 3), 'C':(2, 1), 'D':(3, 3), 'E':(4, 2), 'F':(4, 1)}
 
-# Show original graph
-show_wgraph(G, node_labels=heuristic)
+    G.add_nodes_from(nodes)
+    G.add_weighted_edges_from(weighted_edges)
 
-# Show A* path
-show_wpath(G, path, node_labels=heuristic)
-plt.show()
+    # Show original graph
+    show_wgraph(G, custom_node_positions=node_pos, node_labels=heuristic)
+
+    # Show A* path
+    show_wpath(G, path, custom_node_positions=node_pos, node_labels=heuristic)
+    plt.show()
 
