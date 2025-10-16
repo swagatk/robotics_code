@@ -1,14 +1,12 @@
 """
-Dijkstra's algorithm implementation using dictionary input
-
+Dijkstra algorithm takes nodes and edges separately.
+Edges are in the form of dictionary with tuple keys.
 """
-
-import numpy as np
-import networkx as nx
+from graph_visualization import show_wpath_ne
 import matplotlib.pyplot as plt
-from graph_visualization import show_wgraph, show_wpath_d
 
-# 
+Example_1 = False
+Example_2 = True
 
 # minimum function for dictionary,
 # it will return the key who have the smallest value
@@ -22,68 +20,98 @@ def minimum(dict):
 def dijkstra(nodes, edges, start, end):
     unexplored = {node : float('inf') for node in nodes}
     unexplored[start] = 0
-    shortest_path = []
+    path_trace = {}
+
     while len(unexplored) != 0:
         explore = minimum(unexplored)
-        shortest_path.append(explore)
+
         if explore == end:
             break
         else:
             for path in edges.items():
                 if path[0][0] == explore:
-                    if path[0][1] in unexplored.keys():
-                        check_time = unexplored[path[0][0]] + path[1]
-                        if check_time < unexplored[path[0][1]]:
-                            unexplored[path[0][1]] = check_time
+                    neighbor = path[0][1]
+                    if neighbor in unexplored.keys():
+                        check_time = unexplored[explore] + path[1]
+                        if check_time < unexplored[neighbor]:
+                            unexplored[neighbor] = check_time
+                            path_trace[neighbor] = explore
                 elif path[0][1] == explore:
-                    if path[0][0] in unexplored.keys():
-                        check_time = unexplored[path[0][1]] + path[1]
-                        if check_time < unexplored[path[0][0]]:
-                            unexplored[path[0][0]] = check_time
+                    neighbor = path[0][0]
+                    if neighbor in unexplored.keys():
+                        check_time = unexplored[explore] + path[1]
+                        if check_time < unexplored[neighbor]:
+                            unexplored[neighbor] = check_time
+                            path_trace[neighbor] = explore
             del unexplored[explore]
-    return(unexplored[explore], shortest_path)
 
+    # Reconstruct the shortest path
+    current = end
+    path = [current]
+    while current != start:
+        current = path_trace[current]
+        path.append(current)
+    path.reverse()
+
+    return(unexplored[explore], path)
 
 if __name__ == "__main__":
 
-    # list to represent the Airports
-    airports = ['A', 'B', 'C', 'D', 'E']
-    # dictionary to represent the lines between Airports
-    # and the time it will take
-    lines = {
-        ('A', 'B') : 4,
-        ('A', 'C') : 2,
-        ('B', 'C') : 1,
-        ('B', 'D') : 2,
-        ('C', 'D') : 4,
-        ('C', 'E') : 5,
-        ('E', 'D') : 1,
-    }
+    if Example_1:
+        # list to represent the Airports
+        airports = ['A', 'B', 'C', 'D', 'E']
+        # dictionary to represent the lines between Airports
+        # and the time it will take
+        lines = {
+            ('A', 'B') : 4,
+            ('A', 'C') : 2,
+            ('B', 'C') : 1,
+            ('B', 'D') : 2,
+            ('C', 'D') : 4,
+            ('C', 'E') : 5,
+            ('E', 'D') : 1,
+        }
 
-    # we choose Airport A as the starting airport
-    # and Airport D as the destination
-    start = 'A'
-    end = 'D'
+        # we choose Airport A as the starting airport
+        # and Airport D as the destination
+        start = 'A'
+        end = 'D'
 
-    # Apply dijkstra algorithm to find optimal path
-    cum_cost, wp = dijkstra(airports, lines, start, end)
-    print("Total Cost: ", cum_cost)
-    print("Shortest Path: ", wp)
+        # Apply dijkstra algorithm to find optimal path
+        cum_cost, wp = dijkstra(airports, lines, start, end)
+        print("Total Cost: ", cum_cost)
+        print("Shortest Path: ", wp)
 
-    # visualize original graph
-    # create a networkx graph from the dictionary    
-    G = nx.Graph()
-    weighted_edges = [(*key, value) for (key, value) in zip(lines.keys(), lines.values())]
-    node_pos = {'A':(1, 2), 'B':(2, 3), 'C':(2, 1), 'D':(3, 3), 'E':(3, 1)}
+        # visualize the graph with path
+        show_wpath_ne(airports, lines, wp)
+        plt.show()
 
+    if Example_2:
 
-    G.add_nodes_from(airports)
-    #G.add_edges_from(lines)
-    G.add_weighted_edges_from(weighted_edges)
+        nodes = ['A', 'B', 'C', 'D', 'E', 'F']
+        edges = {
 
-    show_wgraph(G, custom_node_positions=node_pos)
+                ('A', 'B') : 2,
+                ('A', 'C') : 4,
+                ('B', 'C') : 1,
+                ('B', 'D') : 4,
+                ('B', 'E') : 2,
+                ('C', 'E') : 3,
+                ('D', 'F') : 2,
+                ('E', 'D') : 3,
+                ('E', 'F') : 2,
 
-    # show shortest path
-    show_wpath_d(G, start, end, node_pos)
+        }
 
-    plt.show()
+        start = 'A'
+        end = 'F'
+
+        # Apply dijkstra algorithm to find optimal path
+        cum_cost, wp = dijkstra(nodes, edges, start, end)
+        print("Total Cost: ", cum_cost)
+        print("Shortest Path: ", wp)
+
+        # visualize the graph with path
+        show_wpath_ne(nodes, edges, wp)
+        plt.show()
+

@@ -1,7 +1,13 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 from heapq import heapify, heappush, heappop
-from graph_visualization import show_wgraph, show_wpath_d
+from graph_visualization import show_wgraph, show_wpath_d, show_wpath
+
+Example_1 = False
+Example_2 = True
+
+
+
 class Graph:
     def __init__(self, graph: dict = {}):
         self.graph = graph  # A dictionary for the adjacency list
@@ -15,6 +21,14 @@ class Graph:
         for node in self.graph:
             print(f"{node}: {self.graph[node]}")
         return ""
+    
+    def convert_to_nxgraph(self):
+        G = nx.Graph()
+        nodes = self.get_nodes()
+        weighted_edges = self.get_edges()
+        G.add_nodes_from(nodes)
+        G.add_weighted_edges_from(weighted_edges)
+        return G
 
     def shortest_distance(self, source: str):
         # Initialize the values of all nodes with infinity
@@ -74,61 +88,82 @@ class Graph:
         return edges
     
 if __name__ == "__main__":
-    G = Graph()
 
-    # Add A and its neighbors
-    G.add_edge("A", "B", 3)
-    G.add_edge("A", "C", 3)
+    if Example_1:
+        G = Graph()
 
-    # Add B and its neighbors
-    G.add_edge("B", "A", 3)
-    G.add_edge("B", "D", 3.5)
-    G.add_edge("B", "E", 2.8)
+        # Add A and its neighbors
+        G.add_edge("A", "B", 3)
+        G.add_edge("A", "C", 3)
 
-    G.add_edge("C", "A", 3)
-    G.add_edge("C", "E", 2.8)
-    G.add_edge("C", "F", 3.5)
+        # Add B and its neighbors
+        G.add_edge("B", "A", 3)
+        G.add_edge("B", "D", 3.5)
+        G.add_edge("B", "E", 2.8)
 
-    G.add_edge("D", "B", 3.5)
-    G.add_edge("D", "E", 3.1)
-    G.add_edge("D", "G", 10)
+        G.add_edge("C", "A", 3)
+        G.add_edge("C", "E", 2.8)
+        G.add_edge("C", "F", 3.5)
 
-    G.add_edge("E", "B", 2.8)
-    G.add_edge("E", "C", 2.8)
-    G.add_edge("E", "D", 3.1)
-    G.add_edge("E", "G", 7)
+        G.add_edge("D", "B", 3.5)
+        G.add_edge("D", "E", 3.1)
+        G.add_edge("D", "G", 10)
 
-    G.add_edge("F", "C", 3.5)
-    G.add_edge("F", "G", 2.5)
+        G.add_edge("E", "B", 2.8)
+        G.add_edge("E", "C", 2.8)
+        G.add_edge("E", "D", 3.1)
+        G.add_edge("E", "G", 7)
 
-    G.add_edge("G", "D", 10)
-    G.add_edge("G", "E", 7)
-    G.add_edge("G", "F", 2.5)
+        G.add_edge("F", "C", 3.5)
+        G.add_edge("F", "G", 2.5)
 
-    print(G)
+        G.add_edge("G", "D", 10)
+        G.add_edge("G", "E", 7)
+        G.add_edge("G", "F", 2.5)
 
-    path, dist_to_target = G.shortest_path("B", "F")
-    print('Shortest path from node B to F:', path)
-    print('Distance to target: ', dist_to_target)
+        print(G)
 
-
-    path, dist_to_target = G.shortest_path("A", "G")
-    print('shortest path from A to G: ', path)
-    print('Distance to target: ', dist_to_target)
+        path, dist_to_target = G.shortest_path("B", "F")
+        print('Shortest path from node B to F:', path)
+        print('Distance to target: ', dist_to_target)
 
 
-    # visualize orginal graph 
-    nxG = nx.Graph()
+        path, dist_to_target = G.shortest_path("A", "G")
+        print('shortest path from A to G: ', path)
+        print('Distance to target: ', dist_to_target)
 
-    nodes = G.get_nodes()
-    weighted_edges = G.get_edges()
 
-    nxG.add_nodes_from(nodes)
-    nxG.add_weighted_edges_from(weighted_edges)
-    show_wgraph(nxG)
-    
+        # visualize orginal graph 
+        nxG = G.convert_to_nxgraph()
+        #show_wgraph(nxG)
+        
 
-    # visualize shortest path from A to G
-    show_wpath_d(nxG, 'A', 'G')
+        # visualize shortest path from A to G
+        show_wpath_d(nxG, 'A', 'G')
+        plt.show()
 
-    plt.show()
+    if Example_2:
+
+        my_graph = {
+        'A': {'B':2, 'C':3},
+        'B': {'A':2, 'D':3, 'E':1, 'F':5},
+        'C': {'A':3, 'D':1, 'E':2, 'F':2},
+        'D': {'B':3, 'E':1},
+        'E': {'B':1, 'D':1, 'F':1},
+        'F': {'C':2, 'E':1}
+     }
+        
+        g = Graph(my_graph)
+        print(g)
+
+        path, dist_to_target = g.shortest_path("A", "F")
+        print('Shortest path from node A to F:', path)
+        print('Distance to target: ', dist_to_target)
+
+        # visualize orginal graph 
+        nxG = g.convert_to_nxgraph()
+        
+        node_pos = {'A':(1, 2), 'B':(2, 3), 'C':(2, 1), 'D':(3, 3), 'E':(4, 2), 'F':(4, 1)}
+        # visualize shortest path from A to F
+        show_wpath(nxG, path, custom_node_positions=node_pos)
+        plt.show()

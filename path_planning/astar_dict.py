@@ -6,35 +6,49 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from graph_visualization import show_wgraph, show_wpath
 
+def convert_to_nxgraph(graph:dict):
+    G = nx.Graph()
+    nodes = list(my_graph.keys())
+    weighted_edges = []
+    for node, neighbors in my_graph.items():
+        for neighbor, weight in neighbors.items():
+            weighted_edges.append((node, neighbor, weight))
+
+    G.add_nodes_from(nodes)
+    G.add_weighted_edges_from(weighted_edges)
+    return G
+
+
 def astar(graph, heuristic, start_node, end_node):
-    f_distance = {node: float('inf') for node in graph}
-    f_distance[start_node] = 0
     g_distance = {node: float('inf') for node in graph}
     g_distance[start_node] = 0
 
     came_from = {node: None for node in graph}
-    came_from[start_node] = None
-    open_set = [(0, start_node)] # priority Q
+
+    # The priority queue will store (f_score, node).
+    # The f_score of the start node is its heuristic value.
+    open_set = [(heuristic[start_node], start_node)] # priority Q
+
     while open_set:
-        current_f_distance, current_node = heapq.heappop(open_set)
+        _, current_node = heapq.heappop(open_set)
 
         if current_node == end_node:
             path = []
-            while current_node in came_from:
+            while current_node is not None:
                 path.append(current_node)
                 current_node = came_from[current_node]
             path.reverse()
             return path, g_distance[end_node]
 
         for next_node, weight in graph[current_node].items():
-            temp_g_distance = g_distance[current_node] + weight
+            tentative_g_distance = g_distance[current_node] + weight
 
-            if temp_g_distance < g_distance[next_node]:
-                g_distance[next_node] = temp_g_distance
-                f_distance[next_node] = g_distance[next_node] + heuristic[next_node]
-                heapq.heappush(open_set, (f_distance[next_node], next_node))
+            if tentative_g_distance < g_distance[next_node]:
+                g_distance[next_node] = tentative_g_distance
+                f_score = tentative_g_distance + heuristic[next_node]
+                heapq.heappush(open_set, (f_score, next_node))
                 came_from[next_node] = current_node
-    return f_distance, came_from
+    return None, float('inf') # Path not found
 
 
 if __name__ == "__main__":
@@ -60,23 +74,15 @@ if __name__ == "__main__":
     print('Shortest Path using A*: ', path)
 
     # visualize the graph
-    G = nx.Graph()
 
-    nodes = list(my_graph.keys())
-    weighted_edges = []
-    for node, neighbors in my_graph.items():
-        for neighbor, weight in neighbors.items():
-            weighted_edges.append((node, neighbor, weight))
-
+    G = convert_to_nxgraph(my_graph)
     node_pos = {'A':(1, 2), 'B':(2, 3), 'C':(2, 1), 'D':(3, 3), 'E':(4, 2), 'F':(4, 1)}
 
-    G.add_nodes_from(nodes)
-    G.add_weighted_edges_from(weighted_edges)
+
 
     # Show original graph
-    show_wgraph(G, custom_node_positions=node_pos, node_labels=heuristic)
+    #show_wgraph(G, custom_node_positions=node_pos, node_labels=heuristic)
 
     # Show A* path
     show_wpath(G, path, custom_node_positions=node_pos, node_labels=heuristic)
     plt.show()
-

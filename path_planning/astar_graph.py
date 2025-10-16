@@ -20,6 +20,14 @@ class Graph:
             self.graph[node1] = {}
         self.graph[node1][node2] = weight
 
+    def convert_to_nxgraph(self):
+        G = nx.Graph()
+        nodes = self.get_nodes()
+        weighted_edges = self.get_edges()
+        G.add_nodes_from(nodes)
+        G.add_weighted_edges_from(weighted_edges)
+        return G
+
     def astar_path(self, source: str, target: str, heuristic: dict):
         """
         Finds the shortest path from source to target using A* algorithm.
@@ -103,12 +111,8 @@ if __name__ == "__main__":
     print('Total cost: ', dist)
 
     # --- Visualization ---
-    nxG = nx.Graph()
-    nodes = g.get_nodes()
-    weighted_edges = g.get_edges()
-    nxG.add_nodes_from(nodes)
-    nxG.add_weighted_edges_from(weighted_edges)
-
-    show_wgraph(nxG, node_labels=heuristic)
+    nxG = g.convert_to_nxgraph()
+    
+    #show_wgraph(nxG, node_labels=heuristic)
     show_wpath(nxG, path, node_labels=heuristic)
     plt.show()

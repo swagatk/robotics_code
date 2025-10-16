@@ -18,7 +18,6 @@ def show_wgraph(G, custom_node_positions=None, node_labels:dict=None):
     if node_labels!=None:
         pos2 = {k:(v[0]+0.1,v[1]+0.1) for (k,v) in pos.items()}
         nx.draw_networkx_labels(G, pos2, labels=node_labels, font_color='r')
-
     return plt
 
 # provide options to display additional node values
@@ -92,4 +91,66 @@ def plot_maze(maze, path, algo='path'):
     plt.ylabel('Y-axis')
     plt.grid(visible='both', which='both')
     plt.legend(loc='best')
+    return plt
+
+
+def show_wpath_ne(nodes: list, edges: dict, path: list, custom_node_positions=None, node_labels=None):
+    """
+    It takes an input of nodes, edges (in dictionary form) and a path (list of nodes)
+    and visualizes the graph with the specified path highlighted.
+    """
+    plt.figure()
+    G = nx.Graph()
+    G.add_nodes_from(nodes)
+    weighted_edges = []
+    for edge, weight in edges.items():
+        weighted_edges.append((edge[0], edge[1], weight))
+    G.add_weighted_edges_from(weighted_edges)
+
+    if custom_node_positions==None:
+        pos = nx.spring_layout(G)
+    else:
+        pos=custom_node_positions
+
+    weight_labels = nx.get_edge_attributes(G,'weight')
+
+    edges_path = list(zip(path,path[1:]))
+    edges_path_reversed = [(y,x) for (x,y) in edges_path]
+    edges_path = edges_path + edges_path_reversed
+    edge_colors = ['black' if not edge in edges_path else 'red' for edge in G.edges()]
+
+    nodecol = ['steelblue' if not node in path else 'red' for node in G.nodes()]
+    nx.draw(G, pos, with_labels = True, font_color = 'white', edge_color= edge_colors, node_shape = 's', node_color = nodecol)
+    nx.draw_networkx_edge_labels(G,pos,edge_labels=weight_labels)
+
+    if node_labels != None:
+        pos2 = {k:(v[0]+0.1,v[1]+0.1) for (k,v) in pos.items()}
+        nx.draw_networkx_labels(G, pos2, labels=node_labels, font_color='r')
+
+    return plt
+
+
+def show_wgraph_ne(nodes: list, edges: dict, custom_node_positions=None, node_labels:dict=None):
+    """
+    Shows a graph given nodes and edges in dictionary form.
+    """
+    plt.figure()
+    G = nx.Graph()
+    G.add_nodes_from(nodes)
+    weighted_edges = []
+    for edge, weight in edges.items():
+        weighted_edges.append((edge[0], edge[1], weight))
+    G.add_weighted_edges_from(weighted_edges)
+
+    if custom_node_positions==None:
+        pos = nx.spring_layout(G)
+    else:
+        pos=custom_node_positions
+
+    weight_labels = nx.get_edge_attributes(G,'weight')
+    nx.draw(G,pos,font_color = 'white', node_shape = 's', with_labels = True,)
+    output = nx.draw_networkx_edge_labels(G,pos,edge_labels=weight_labels)
+    if node_labels!=None:
+        pos2 = {k:(v[0]+0.1,v[1]+0.1) for (k,v) in pos.items()}
+        nx.draw_networkx_labels(G, pos2, labels=node_labels, font_color='r')
     return plt
