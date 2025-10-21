@@ -35,7 +35,7 @@ class Dijkstra:
 
             if current_node == goal_node:
                 # reached the goal node
-                return self.reconstruct_path(current_node)
+                return self.reconstruct_path(current_node) # Returns path and cost
 
             # check every neigbor
             neighbors = self.get_neighbors(current_node)
@@ -58,7 +58,7 @@ class Dijkstra:
                     self.open.append(neighbor)
 
         # no path found
-        return None
+        return None, float('inf')
 
     def get_neighbors(self, node):
         neighbors = []
@@ -78,12 +78,13 @@ class Dijkstra:
         return neighbors # list of nodes
 
     def reconstruct_path(self, goal_node):
+        cost = goal_node.g
         path = []
         current_node = goal_node
         while current_node is not None:
             path.append(current_node.position)
             current_node = current_node.parent
-        return path[::-1] # reverse the path
+        return path[::-1], cost # reverse the path and return cost
 
     def update_node(self, node, g_cost):
         node.g = g_cost
@@ -114,9 +115,13 @@ if __name__ == "__main__":
     goal_node = Node(None, end)
 
     dijkstra = Dijkstra(map_grid)
-    path = dijkstra.search(start_node, goal_node)
-    print(path)
-
-    # visualize the path
-    plot_maze(map_grid, path)
-    plt.show()
+    path, cost = dijkstra.search(start_node, goal_node)
+    
+    if path:
+        print("Path found:", path)
+        print("Total cost:", cost)
+        # visualize the path
+        plot_maze(map_grid, path, title="Dijkstra Path (Grid)")
+        plt.show()
+    else:
+        print("No path found.")

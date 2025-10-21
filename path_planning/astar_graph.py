@@ -1,11 +1,10 @@
 """
 A* Algorithm implementation using a graph class. 
 """
-import networkx as nx
 import matplotlib.pyplot as plt
 from heapq import heapify, heappush, heappop
 from graph_visualization import show_wgraph, show_wpath
-
+import networkx as nx
 class Graph:
     def __init__(self, graph_dict: dict = None):
         """
@@ -21,6 +20,7 @@ class Graph:
         self.graph[node1][node2] = weight
 
     def convert_to_nxgraph(self):
+        """ Converts the graph to a networkx graph. """
         G = nx.Graph()
         nodes = self.get_nodes()
         weighted_edges = self.get_edges()
@@ -46,13 +46,14 @@ class Graph:
         heapify(pq)
 
         # g_score: cost from source to the current node
-        g_scores = {node: float("inf") for node in self.graph}
+        g_scores = {node: float("inf") for node in heuristic}
         g_scores[source] = 0
 
         # came_from: to reconstruct the path
-        predecessors = {node: None for node in self.graph}
+        predecessors = {node: None for node in heuristic}
 
         while pq:
+            # current node is the one with the lowest f_score
             _, current_node = heappop(pq)
 
             if current_node == target:
@@ -63,8 +64,8 @@ class Graph:
                     current_node = predecessors[current_node]
                 path.reverse()
                 return path, g_scores[target]
-
-            if current_node not in self.graph: # Handle nodes that are destinations but not sources
+            # Handle nodes that are destinations but not sources
+            if current_node not in self.graph: 
                 continue
 
             for neighbor, weight in self.graph[current_node].items():
