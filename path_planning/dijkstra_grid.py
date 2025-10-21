@@ -121,7 +121,7 @@ if __name__ == "__main__":
         print("Path found:", path)
         print("Total cost:", cost)
         # visualize the path
-        plot_maze(map_grid, path, title="Dijkstra Path (Grid)")
+        plot_maze(map_grid, start=start, end=end, path=path, algo='Dijkstra', title="Map with Shortest Path (Dijkstra)")
         plt.show()
     else:
         print("No path found.")

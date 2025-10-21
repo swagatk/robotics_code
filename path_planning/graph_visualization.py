@@ -1,11 +1,9 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 
-
-
 # provide options to display additional node values
-def show_wgraph(G, custom_node_positions=None, node_labels:dict=None):
-    plt.figure()
+def show_wgraph(G, custom_node_positions=None, node_labels:dict=None, title=None):
+    fig, ax = plt.subplots()
 
     if custom_node_positions==None:
         pos = nx.spring_layout(G)
@@ -13,16 +11,19 @@ def show_wgraph(G, custom_node_positions=None, node_labels:dict=None):
         pos=custom_node_positions
 
     weight_labels = nx.get_edge_attributes(G,'weight')
-    nx.draw(G,pos,font_color = 'white', node_shape = 's', with_labels = True,)
-    output = nx.draw_networkx_edge_labels(G,pos,edge_labels=weight_labels)
+    nx.draw(G,pos,font_color = 'white', node_shape = 's', with_labels = True, ax=ax)
+    output = nx.draw_networkx_edge_labels(G,pos,edge_labels=weight_labels, ax=ax)
     if node_labels!=None:
         pos2 = {k:(v[0]+0.1,v[1]+0.1) for (k,v) in pos.items()}
-        nx.draw_networkx_labels(G, pos2, labels=node_labels, font_color='r')
-    return plt
+        nx.draw_networkx_labels(G, pos2, labels=node_labels, font_color='r', ax=ax)
+    if title != None:
+        ax.set_title(title)
+    return fig, ax
 
 # provide options to display additional node values
 # shows dijkstra shortest path
-def show_wpath_d(G, from_node, to_node,custom_node_positions=None, node_labels=None):
+def show_wpath_d(G, from_node, to_node,custom_node_positions=None, node_labels=None,
+                  title=None):
     fig, ax = plt.subplots()
 
     if custom_node_positions==None:
@@ -46,6 +47,9 @@ def show_wpath_d(G, from_node, to_node,custom_node_positions=None, node_labels=N
     if node_labels != None:
         pos2 = {k:(v[0]+0.1,v[1]+0.1) for (k,v) in pos.items()}
         nx.draw_networkx_labels(G, pos2, labels=node_labels, font_color='r')
+
+    if title != None:
+        ax.set_title(title)
 
     return fig, ax
 
@@ -81,11 +85,10 @@ def show_wpath(G, path, custom_node_positions=None, node_labels=None, title=None
     return fig, ax
 
 # plot a maze and the path found
-def plot_maze(maze, path, algo='path', title=None):
+def plot_maze(maze, start: tuple, end: tuple, path=None, algo='path', title=None):
     plt.imshow(maze, cmap='binary')
-    plt.plot([x[1] for x in path], [x[0] for x in path], 'r', label=algo)
-    start = path[0]
-    end = path[-1]
+    if path is not None:
+        plt.plot([x[1] for x in path], [x[0] for x in path], 'r', label=algo)
     plt.plot(start[1], start[0], 'go', markersize=10, label='start')
     plt.plot(end[1], end[0], 'ro', markersize=10, label='goal')
     plt.xticks(range(0,10,1))
