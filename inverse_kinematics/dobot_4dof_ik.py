@@ -3,7 +3,7 @@ Solving inverse kinematics for Dobot 4DOF robotic arm
 """
 
 import numpy as np
-from inverse_kinematics.dobot_config import get_dobot_dh_params
+from dobot_config import get_dobot_dh_params
 from inverse_kinematics_dhp import inverse_kinematics_pi, check_joint_limit
 from fwd_kinematics_dph import forward_kinematics, plot_robot
 import matplotlib.pyplot as plt

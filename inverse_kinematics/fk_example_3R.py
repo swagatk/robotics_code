@@ -1,4 +1,4 @@
-from fwd_kinematics_dph import forward_kinematics, deg2rad, plot_robot
+from fwd_kinematics_dph import forward_kinematics, plot_robot
 import numpy as np 
 import matplotlib.pyplot as plt
 
@@ -18,9 +18,9 @@ if __name__ == "__main__":
     d = [0, 0, 0, 0]  # link
 
     # joint angles
-    th1 = deg2rad(30)
-    th2 = deg2rad(30)
-    th3 = deg2rad(30)
+    th1 = np.deg2rad(30)
+    th2 = np.deg2rad(30)
+    th3 = np.deg2rad(30)
     theta = [th1, th2, th3, 0]  # last joint angle is 0 for prismatic joint
 
     # Compute forward kinematics

@@ -76,4 +76,16 @@ where $\dot{\mathbf{q}} = KJ^{\dagger} (\mathbf{x}_d - \mathbf{x})$.
 
 The iteration loop is stopped when the two consecutive values of the joint angle vectors are very close to each other.
 
+## images
+
+Dobot Workspace
+![Dobot robot work space](./images/dobot_workspace.png)
+
+Dobot model
+![Dobot Model](./images/dobot_model.png)
+
+
+3R Planar Robot model
+![planar_robot](./images/3R_planar_robot_model.png)
+
 
