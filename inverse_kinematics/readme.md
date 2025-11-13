@@ -1,4 +1,5 @@
 # Forward and Inverse Kinematics from D-H Parameters
+Currently, we are using JJ Craig's convention for deriving DH Parameters
 
 ## Dependencies
 * Python 3.x
