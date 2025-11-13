@@ -2,7 +2,7 @@
 
 ## Dependencies
 * Python 3.x
-* symbolic toolbox simpy
+* symbolic toolbox sympy
 * numpy
 * scipy
 * matplotlib
@@ -20,41 +20,60 @@
 
 ## How to use
 You can simply run each file through command line:
-```
+```bash
 python fk_example_3R.py
 python dobot_4dof_fk.py
 python dobot_4dof_ik.py
 ```
 
-
 ## Pseudoinverse method for computing Inverse Kinematics
+
 Forward kinematic equation is given by:
-$$\mathbf{x} = f(\mathbf{q}) $$
+
+$$\mathbf{x} = f(\mathbf{q})$$
+
 Differentiating both sides with respect to time, we get:
-$$ \begin{eqnarray}
-\dot{\mathbf{x}} &=& f'(\mathbf{q})\dot{\mathbf{q}} = J \dot{\mathbf{q}} \\
-\Rightarrow \dot{\mathbf{q}} &=& J^\dagger \dot{\mathbf{x}}
-\end{eqnarray}$$
-Where $J = \frac{d\mathbf{x}}{d\mathbf{q}}$ is the Jacobian matrix and $J^\dagger$ is the Moore-Penrose pseudoinverse of $J$, such that $J^\dagger J = I$.
+
+$$\begin{align}
+\dot{\mathbf{x}} &= f'(\mathbf{q})\dot{\mathbf{q}} = J \dot{\mathbf{q}} \\
+\Rightarrow \dot{\mathbf{q}} &= J^{\dagger} \dot{\mathbf{x}}
+\end{align}$$
+
+Where $J = \frac{d\mathbf{x}}{d\mathbf{q}}$ is the Jacobian matrix and $J^{\dagger}$ is the Moore-Penrose pseudoinverse of $J$, such that $J^{\dagger} J = I$.
 
 In terms of end effector position error, we can write as follows:
-$$\begin{eqnarray}
-\mathbf{e} &=& \mathbf{x}_d - \mathbf{x}\\
-\dot{\mathbf{e}} &=& -\dot{\mathbf{x}} = -J\dot{\mathbf{q}}
-\end{eqnarray}$$
-By selecting $\dot{\mathbf{q}} = KJ^\dagger \mathbf{e}$, we get a stable system as:
-$$\dot{\mathbf{e}} + K \mathbf{e} = 0$$ leading to $\mathbf{e} \rightarrow 0$ as $ t\rightarrow \infty$.
-Its because:
-$$\dot{\mathbf{e}} = -K\mathbf{e} \Rightarrow \frac{d\mathbf{e}}{\mathbf{e}}= -Kdt$$
-Integrating both sides:
-$$\begin{eqnarray}
-\int_0^t \frac{d\mathbf{e}}{\mathbf{e}} = -K\int_0^t dt \\
-\ln \mathbf{e}|_{e_0}^e = -Kt \\
-\Rightarrow \mathbf{e} = \mathbf{e}_0 e^{-Kt}
-\end{eqnarray}$$
-So, as $t \rightarrow \infty$, $\mathbf{e}\rightarrow 0;\; \forall K > 0$. Hence, by starting with an initial value of $\mathbf{q}(t=0) = \mathbf{q}_0$, we can incrementally update the joint angles by using the following equation:
 
-$$ \mathbf{q} = \mathbf{q} + \dot{\mathbf{q}} \Delta t $$
-where $\dot{\mathbf{q}} = KJ^\dagger (\mathbf{x}_d - \mathbf{x})$. The iteration loop is stopped when the two consecutive values of the joint angle vectors are very close to each other.
+$$\begin{align}
+\mathbf{e} &= \mathbf{x}_d - \mathbf{x}\\
+\dot{\mathbf{e}} &= -\dot{\mathbf{x}} = -J\dot{\mathbf{q}}
+\end{align}$$
+
+By selecting $\dot{\mathbf{q}} = KJ^{\dagger} \mathbf{e}$, we get a stable system as:
+
+$$\dot{\mathbf{e}} + K \mathbf{e} = 0$$
+
+leading to $\mathbf{e} \rightarrow 0$ as $t \rightarrow \infty$.
+
+This is because:
+
+$$\dot{\mathbf{e}} = -K\mathbf{e} \Rightarrow \frac{d\mathbf{e}}{\mathbf{e}} = -Kdt$$
+
+Integrating both sides:
+
+$$\begin{align}
+\int_0^t \frac{d\mathbf{e}}{\mathbf{e}} &= -K\int_0^t dt \\
+\ln \mathbf{e}\Big|_{e_0}^e &= -Kt \\
+\Rightarrow \mathbf{e} &= \mathbf{e}_0 e^{-Kt}
+\end{align}$$
+
+So, as $t \rightarrow \infty$, $\mathbf{e} \rightarrow 0$ for all $K > 0$. 
+
+Hence, by starting with an initial value of $\mathbf{q}(t=0) = \mathbf{q}_0$, we can incrementally update the joint angles by using the following equation:
+
+$$\mathbf{q} = \mathbf{q} + \dot{\mathbf{q}} \Delta t$$
+
+where $\dot{\mathbf{q}} = KJ^{\dagger} (\mathbf{x}_d - \mathbf{x})$. 
+
+The iteration loop is stopped when the two consecutive values of the joint angle vectors are very close to each other.
 
 
