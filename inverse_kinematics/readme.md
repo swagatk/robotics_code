@@ -89,4 +89,13 @@ Dobot model
 3R Planar Robot model
 ![planar_robot](./images/3R_planar_robot_model.png)
 
+IK solution for square trajectory
+![square_trajectory](./images/square_trajectory.png)
+
+IK Solution for circle trajectory
+
+![circular_trajectory](./images/circular_trajectroy.png)
+
+
+
 
