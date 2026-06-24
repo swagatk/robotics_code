@@ -78,9 +78,9 @@ def run_lqr_control(swingup=False, sim_time=None):
     # Reset environment to a random initial state
     obs, info = env.reset()
 
-    # Set the initial state based on whether swing-up control is active
+    # Set the initial state based on whether swing-up control is active````
     if swingup:
-        initial_angle =  np.pi  # Start at the bottom
+        initial_angle =  np.pi #-np.deg2rad(41)#np.pi  # Start at the bottom
         initial_velocity = 0.0
     else:
         # LQR is a local controller. Start near the upright position (theta=0).
@@ -151,24 +151,48 @@ def plot_results(history, swingup=False):
     """
     Plots the simulation results: angle, angular velocity, and control input.
     """
+    # Compute L2 norms
+    theta_rad_l2 = np.linalg.norm(history['theta'])
+    theta_deg_l2 = np.linalg.norm(np.rad2deg(history['theta']))
+    theta_dot_l2 = np.linalg.norm(history['theta_dot'])
+    torque_l2 = np.linalg.norm(history['control_input'])
+
+    # Print to console
+    print("\n--- Simulation L2 Norms ---")
+    print(f"Angle (theta) L2 Norm: {theta_rad_l2:.4f} rad ({theta_deg_l2:.4f} deg)")
+    print(f"Angular Velocity (theta_dot) L2 Norm: {theta_dot_l2:.4f} rad/s")
+    print(f"Torque (u) L2 Norm: {torque_l2:.4f} Nm")
+    print("----------------------------\n")
+
     plt.style.use('seaborn-v0_8-whitegrid')
     fig, axs = plt.subplots(3, 1, figsize=(10, 8), sharex=True)
 
     # Plot 1: Pendulum Angle (theta)
-    axs[0].plot(history['time'], np.rad2deg(history['theta']), label='Theta (θ)', color='b')
+    axs[0].plot(history['time'], np.rad2deg(history['theta']), label=f'Theta (θ) (L2: {theta_rad_l2:.4f} rad)', color='b')
     axs[0].axhline(0, color='r', linestyle='--', label='Target')
     axs[0].set_ylabel('Angle (degrees)')
     axs[0].set_title('Pendulum State and Control Input vs. Time')
     axs[0].legend(loc='upper right')
 
+    # Add text box with L2 norms on the first plot
+    textstr = (
+        f"L2 Norms:\n"
+        f"θ: {theta_rad_l2:.4f} rad\n"
+        f"ὡ: {theta_dot_l2:.4f} rad/s\n"
+        f"u: {torque_l2:.4f} Nm"
+    )
+    props = dict(boxstyle='round,pad=0.5', facecolor='white', alpha=0.85, edgecolor='#cccccc')
+    axs[0].text(0.02, 0.95, textstr, transform=axs[0].transAxes, fontsize=9,
+                verticalalignment='top', bbox=props)
+
     # Plot 2: Pendulum Angular Velocity (theta_dot)
-    axs[1].plot(history['time'], history['theta_dot'], label='Theta_dot (ὡ)', color='g')
+    axs[1].plot(history['time'], history['theta_dot'], label=f'Theta_dot (ὡ) (L2: {theta_dot_l2:.4f} rad/s)', color='g')
     axs[1].axhline(0, color='r', linestyle='--', label='Target')
     axs[1].set_ylabel('Angular Velocity (rad/s)')
     axs[1].legend(loc='upper right')
 
     # Plot 3: Control Input (Torque)
-    axs[2].plot(history['time'], history['control_input'], label='Control Input (u)', color='purple')
+    axs[2].plot(history['time'], history['control_input'], label=f'Control Input (u) (L2: {torque_l2:.4f} Nm)', color='purple')
     axs[2].set_xlabel('Time (s)')
     axs[2].set_ylabel('Torque (Nm)')
     axs[2].legend(loc='upper right')
