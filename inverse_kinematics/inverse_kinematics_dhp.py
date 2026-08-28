@@ -129,3 +129,4 @@ def inverse_kinematics_pi(xd, dh_params:tuple, num_steps=100000, gain=10, stat=F
                 sys.stdout.flush()
         
     return q, qnorm_list
+
