@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MECH/ROBT 301 - Lab 1: Conveyor Sorting Cell Simulation</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 280px;
+            max-height: 350px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 320px;
+            }
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-slate-900 text-white shadow-md border-b border-slate-700 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-600 text-white p-2 rounded-lg font-bold text-xl tracking-wider">PLC</div>
+                <div>
+                    <h1 class="font-bold text-lg md:text-xl leading-tight">Applied Industrial Automation</h1>
+                    <p class="text-xs text-slate-400">Lab 1: Discrete State Control & Conveyor Sorting Cell</p>
+                </div>
+            </div>
+
+            <!-- System Status Badge -->
+            <div class="flex items-center space-x-4">
+                <div id="statusBadge" class="flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-bold bg-green-950 text-green-400 border border-green-700">
+                    <span class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
+                    <span id="statusText">PLC RUNNING (50 Hz)</span>
+                </div>
+                <button id="btnHeaderEstop" onclick="toggleEstop()" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded shadow transition">
+                    EMERGENCY STOP
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="bg-slate-800 text-slate-300 text-sm border-t border-slate-700">
+            <div class="max-w-7xl mx-auto px-4 flex overflow-x-auto">
+                <button onclick="switchTab('tab-overview')" id="nav-tab-overview" class="nav-btn px-4 py-2.5 font-medium border-b-2 border-transparent hover:text-white whitespace-nowrap">
+                    1. System Overview & I/O
+                </button>
+                <button onclick="switchTab('tab-math')" id="nav-tab-math" class="nav-btn px-4 py-2.5 font-medium border-b-2 border-transparent hover:text-white whitespace-nowrap">
+                    2. Math & FSM Logic
+                </button>
+                <button onclick="switchTab('tab-sim')" id="nav-tab-sim" class="nav-btn px-4 py-2.5 font-medium border-b-2 border-blue-500 text-white whitespace-nowrap">
+                    3. Interactive Digital Twin
+                </button>
+                <button onclick="switchTab('tab-analytics')" id="nav-tab-analytics" class="nav-btn px-4 py-2.5 font-medium border-b-2 border-transparent hover:text-white whitespace-nowrap">
+                    4. Telemetry & Analytics
+                </button>
+                <button onclick="switchTab('tab-worksheet')" id="nav-tab-worksheet" class="nav-btn px-4 py-2.5 font-medium border-b-2 border-transparent hover:text-white whitespace-nowrap">
+                    5. Student Worksheet & Quiz
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full">
+
+        <!-- TAB 1: SYSTEM OVERVIEW & I/O MAP -->
+        <section id="tab-overview" class="tab-content hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-xl font-bold text-slate-900 mb-2">Physical System Architecture</h2>
+                <p class="text-slate-600 text-sm mb-4">
+                    The system under study is a high-speed quality-control conveyor sorting cell. Cylindrical workpieces enter at the infeed, pass an optical trigger sensor ($PE_1$), are inspected for defects by vision/eddy-current sensor ($S_1$), and if defective, are ejected into a scrap bin by an orthogonal pneumatic actuator ($A_1$).
+                </p>
+
+                <div class="bg-slate-900 text-slate-200 p-4 rounded-lg font-mono text-xs overflow-x-auto leading-relaxed border border-slate-700 mb-6">
+                    <pre>
+                                PHYSICAL CELL TOPOLOGY
+
+       [ Optical Trigger ]        [ Vision / Quality ]               [ High-Speed Pneumatic ]
+       [ Sensor (PE1)    ]        [ Sensor (S1)      ]               [ Pusher Actuator (A1) ]
+               │                            │                                  │
+               ▼                            ▼                                  ▼
+══════════════════════════════════════════════════════════════════════════════════════════════════════> Conveyor (v = 0.20 m/s)
+[Infeed]       x = 0.0 m                    x = 0.10 m                         x = 0.60 m           [Good Parts Bin]
+                                                                               │
+                                                                               ▼ (If Defective)
+                                                                        [Scrap Reject Bin]
+                    </pre>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-md mb-3 flex items-center">
+                            <span class="w-3 h-3 bg-blue-600 rounded-full mr-2"></span> System Specifications
+                        </h3>
+                        <div class="overflow-x-auto border rounded-lg border-slate-200">
+                            <table class="w-full text-xs text-left">
+                                <thead class="bg-slate-50 text-slate-700 uppercase font-semibold border-b">
+                                    <tr>
+                                        <th class="p-2.5">Parameter</th>
+                                        <th class="p-2.5">Symbol</th>
+                                        <th class="p-2.5">Value</th>
+                                        <th class="p-2.5">Unit</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    <tr><td class="p-2.5">Belt Velocity</td><td class="p-2.5 font-mono">v_belt</td><td class="p-2.5 font-bold">0.20</td><td class="p-2.5">m/s</td></tr>
+                                    <tr><td class="p-2.5">Infeed-to-Inspect Dist.</td><td class="p-2.5 font-mono">d_1</td><td class="p-2.5 font-bold">0.10</td><td class="p-2.5">m</td></tr>
+                                    <tr><td class="p-2.5">Inspect-to-Pusher Dist.</td><td class="p-2.5 font-mono">d_2</td><td class="p-2.5 font-bold">0.50</td><td class="p-2.5">m</td></tr>
+                                    <tr><td class="p-2.5">Total Tracked Length</td><td class="p-2.5 font-mono">L_track</td><td class="p-2.5 font-bold">0.60</td><td class="p-2.5">m</td></tr>
+                                    <tr><td class="p-2.5">Cylinder Extension Stroke</td><td class="p-2.5 font-mono">t_ext</td><td class="p-2.5 font-bold">120</td><td class="p-2.5">ms</td></tr>
+                                    <tr><td class="p-2.5">Cylinder Retraction Stroke</td><td class="p-2.5 font-mono">t_ret</td><td class="p-2.5 font-bold">150</td><td class="p-2.5">ms</td></tr>
+                                    <tr><td class="p-2.5">Target PLC Scan Period</td><td class="p-2.5 font-mono">Δt_scan</td><td class="p-2.5 font-bold">20</td><td class="p-2.5">ms (50Hz)</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-md mb-3 flex items-center">
+                            <span class="w-3 h-3 bg-amber-500 rounded-full mr-2"></span> Controller I/O Memory Map
+                        </h3>
+                        <div class="overflow-x-auto border rounded-lg border-slate-200">
+                            <table class="w-full text-xs text-left">
+                                <thead class="bg-slate-50 text-slate-700 uppercase font-semibold border-b">
+                                    <tr>
+                                        <th class="p-2.5">Tag Name</th>
+                                        <th class="p-2.5">Type</th>
+                                        <th class="p-2.5">Dir</th>
+                                        <th class="p-2.5">Hardware Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    <tr><td class="p-2.5 font-mono text-blue-700">DI_PE1_Trigger</td><td class="p-2.5">BOOL</td><td class="p-2.5 font-bold text-emerald-600">IN</td><td class="p-2.5">Infeed photo-eye (x = 0.0m)</td></tr>
+                                    <tr><td class="p-2.5 font-mono text-blue-700">DI_S1_Defect</td><td class="p-2.5">BOOL</td><td class="p-2.5 font-bold text-emerald-600">IN</td><td class="p-2.5">Quality inspection sensor</td></tr>
+                                    <tr><td class="p-2.5 font-mono text-blue-700">DI_A1_Retracted_LS</td><td class="p-2.5">BOOL</td><td class="p-2.5 font-bold text-emerald-600">IN</td><td class="p-2.5">Cylinder Home reed switch</td></tr>
+                                    <tr><td class="p-2.5 font-mono text-blue-700">DI_A1_Extended_LS</td><td class="p-2.5">BOOL</td><td class="p-2.5 font-bold text-emerald-600">IN</td><td class="p-2.5">Cylinder Extended reed switch</td></tr>
+                                    <tr><td class="p-2.5 font-mono text-blue-700">DI_Estop_NC</td><td class="p-2.5">BOOL</td><td class="p-2.5 font-bold text-emerald-600">IN</td><td class="p-2.5">Emergency Stop (NC contact)</td></tr>
+                                    <tr><td class="p-2.5 font-mono text-amber-700">DO_Conveyor_Run</td><td class="p-2.5">BOOL</td><td class="p-2.5 font-bold text-purple-600">OUT</td><td class="p-2.5">Conveyor motor contactor drive</td></tr>
+                                    <tr><td class="p-2.5 font-mono text-amber-700">DO_A1_Extend_Sol</td><td class="p-2.5">BOOL</td><td class="p-2.5 font-bold text-purple-600">OUT</td><td class="p-2.5">5/2-way solenoid valve command</td></tr>
+                                    <tr><td class="p-2.5 font-mono text-amber-700">DO_Alarm_Beacon</td><td class="p-2.5">BOOL</td><td class="p-2.5 font-bold text-purple-600">OUT</td><td class="p-2.5">Fault warning strobe light</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: MATH & FSM LOGIC -->
+        <section id="tab-math" class="tab-content hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-xl font-bold text-slate-900 mb-2">Control Mathematics & Spatial Discretization</h2>
+                <p class="text-slate-600 text-sm mb-6">
+                    In high-speed manufacturing, relying on fixed software timers creates drift and misalignment. Instead, the conveyor spatial window is discretized into $N$ discrete cells corresponding to the distance moved per scan cycle.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <div class="text-xs text-slate-500 uppercase font-semibold">Cell Width (Δx)</div>
+                        <div class="text-lg font-bold text-blue-700 font-mono mt-1">Δx = v × Δt = 4.0 mm</div>
+                        <div class="text-xs text-slate-600 mt-2">0.20 m/s × 0.020 s scan period</div>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <div class="text-xs text-slate-500 uppercase font-semibold">Total Shift Cells (N)</div>
+                        <div class="text-lg font-bold text-blue-700 font-mono mt-1">N = L / Δx = 150 Cells</div>
+                        <div class="text-xs text-slate-600 mt-2">0.60m tracked length array</div>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <div class="text-xs text-slate-500 uppercase font-semibold">Actuator Lead Compensation</div>
+                        <div id="mathLeadText" class="text-lg font-bold text-blue-700 font-mono mt-1">N_lead = 6 Cells</div>
+                        <div id="mathLeadSubtext" class="text-xs text-slate-600 mt-2">Pre-trigger stroke lag (120 ms)</div>
+                    </div>
+                </div>
+
+                <h3 class="font-bold text-slate-800 text-md mb-3">Pneumatic Actuator Finite State Machine (FSM)</h3>
+                <div class="bg-slate-900 text-white p-5 rounded-lg border border-slate-700 overflow-x-auto mb-6">
+                    <div class="flex flex-col md:flex-row items-center justify-between gap-4 text-xs font-mono">
+                        <div class="p-3 bg-slate-800 border-2 border-slate-600 rounded-lg text-center w-full md:w-40">
+                            <div class="text-slate-400 font-bold">STATE 0</div>
+                            <div class="text-white text-sm font-bold mt-1">IDLE</div>
+                            <div class="text-slate-400 text-[10px] mt-1">Cylinder Retracted</div>
+                        </div>
+                        <div class="text-amber-400 text-center font-bold">➜ Defect at Index (149 - N_lead) ➜</div>
+                        <div class="p-3 bg-slate-800 border-2 border-blue-500 rounded-lg text-center w-full md:w-40">
+                            <div class="text-blue-400 font-bold">STATE 1</div>
+                            <div class="text-white text-sm font-bold mt-1">EXTENDING</div>
+                            <div class="text-slate-400 text-[10px] mt-1">Solenoid ON (120ms)</div>
+                        </div>
+                        <div class="text-amber-400 text-center font-bold">➜ Extended LS True ➜</div>
+                        <div class="p-3 bg-slate-800 border-2 border-purple-500 rounded-lg text-center w-full md:w-40">
+                            <div class="text-purple-400 font-bold">STATE 2</div>
+                            <div class="text-white text-sm font-bold mt-1">DWELLING</div>
+                            <div class="text-slate-400 text-[10px] mt-1">Hold & Divert Part (50ms)</div>
+                        </div>
+                        <div class="text-amber-400 text-center font-bold">➜ Dwell Expired ➜</div>
+                        <div class="p-3 bg-slate-800 border-2 border-amber-500 rounded-lg text-center w-full md:w-40">
+                            <div class="text-amber-400 font-bold">STATE 3</div>
+                            <div class="text-white text-sm font-bold mt-1">RETRACTING</div>
+                            <div class="text-slate-400 text-[10px] mt-1">Solenoid OFF (150ms)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: INTERACTIVE DIGITAL TWIN (LIVE SIMULATION) -->
+        <section id="tab-sim" class="tab-content space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Main Controls Panel -->
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 lg:col-span-1 space-y-5">
+                    <h2 class="text-lg font-bold text-slate-900 border-b pb-2">Cell Parameters & Control</h2>
+
+                    <!-- Run / Pause / Reset Controls -->
+                    <div class="flex flex-col gap-2">
+                        <div class="flex gap-2">
+                            <button id="btnToggleRun" onclick="toggleRun()" class="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow transition">
+                                PAUSE CELL
+                            </button>
+                            <button onclick="resetSimulation()" class="flex-1 py-2.5 px-3 bg-slate-700 hover:bg-slate-800 text-white font-bold rounded-lg text-xs transition">
+                                RESET LOGIC
+                            </button>
+                        </div>
+                        <button onclick="manualSpawnPart()" class="w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs shadow transition flex items-center justify-center space-x-1">
+                            <span>➕ SPAWN PART NOW</span>
+                        </button>
+                    </div>
+
+                    <!-- Safety & Fault Injection -->
+                    <div class="bg-slate-50 p-3.5 rounded-lg border border-slate-200 space-y-2">
+                        <div class="text-xs font-bold text-slate-700 uppercase">Fault Injection Panel</div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button id="btnEstopToggle" onclick="toggleEstop()" class="py-2 px-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded text-xs transition">
+                                E-STOP NC (TRIP)
+                            </button>
+                            <button onclick="injectActuatorJam()" class="py-2 px-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded text-xs transition">
+                                JAM ACTUATOR
+                            </button>
+                        </div>
+                        <button id="btnResetSafety" onclick="resetSafetyInterlock()" class="w-full py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded transition">
+                            RESET SAFETY INTERLOCK
+                        </button>
+                    </div>
+
+                    <!-- Lead Actuation Logic Control (HIGHLIGHTED FEATURE) -->
+                    <div class="bg-amber-50/70 p-3.5 rounded-xl border-2 border-amber-400/80 space-y-3">
+                        <div class="flex justify-between items-center border-b border-amber-200 pb-1.5">
+                            <div class="text-xs font-bold text-amber-900 uppercase flex items-center">
+                                <span class="mr-1">⚡</span> Lead Actuation Logic (N_lead)
+                            </div>
+                            <span id="leadStatusBadge" class="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-600 text-white">OPTIMAL</span>
+                        </div>
+                        <p class="text-[11px] text-amber-900/80 leading-snug">
+                            Adjust pre-trigger lead compensation ($N_{\text{lead}}$) to align cylinder extension with part arrival at $x = 0.60\text{m}$.
+                        </p>
+
+                        <!-- Auto / Manual Mode Toggle -->
+                        <div class="flex items-center justify-between text-xs bg-white/80 p-2 rounded border border-amber-200">
+                            <label for="chkAutoLead" class="font-semibold text-slate-700 cursor-pointer select-none">
+                                Auto-Calculate Optimal Lead
+                            </label>
+                            <input type="checkbox" id="chkAutoLead" checked onchange="toggleAutoLead()" class="w-4 h-4 text-blue-600 rounded cursor-pointer">
+                        </div>
+
+                        <!-- Manual Lead Slider -->
+                        <div id="leadSliderContainer" class="space-y-1 opacity-60 pointer-events-none transition-opacity">
+                            <div class="flex justify-between text-xs font-semibold text-slate-800">
+                                <span>Actuation Lead (N_lead):</span>
+                                <span id="valLead" class="font-mono text-amber-800 font-bold">6 Cells (120ms)</span>
+                            </div>
+                            <input type="range" id="sliderLead" min="0" max="20" step="1" value="6" oninput="updateParams()" class="w-full accent-amber-600">
+                            <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+                                <span>0 (0ms) [Late Strike]</span>
+                                <span>20 (400ms) [Early Strike]</span>
+                            </div>
+                        </div>
+
+                        <!-- Presets for Student Experimentation -->
+                        <div class="grid grid-cols-3 gap-1.5 text-[10px]">
+                            <button onclick="applyLeadPreset('zero')" class="py-1 px-1 bg-red-100 hover:bg-red-200 text-red-800 font-bold rounded border border-red-300 text-center transition">
+                                N_lead = 0 (Late / Escapes)
+                            </button>
+                            <button onclick="applyLeadPreset('optimal')" class="py-1 px-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold rounded border border-emerald-300 text-center transition">
+                                Optimal N_lead
+                            </button>
+                            <button onclick="applyLeadPreset('early')" class="py-1 px-1 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold rounded border border-amber-300 text-center transition">
+                                N_lead = 16 (Too Early)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Parameter Sliders -->
+                    <div class="space-y-4 text-xs">
+                        <div>
+                            <div class="flex justify-between font-semibold text-slate-700">
+                                <span>Conveyor Speed (v):</span>
+                                <span id="valSpeed" class="font-mono text-blue-700">0.20 m/s</span>
+                            </div>
+                            <input type="range" id="sliderSpeed" min="0.10" max="0.50" step="0.05" value="0.20" oninput="updateParams()" class="w-full mt-1">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between font-semibold text-slate-700">
+                                <span>Extension Stroke Time (t_ext):</span>
+                                <span id="valStroke" class="font-mono text-blue-700">120 ms</span>
+                            </div>
+                            <input type="range" id="sliderStroke" min="60" max="350" step="10" value="120" oninput="updateParams()" class="w-full mt-1">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between font-semibold text-slate-700">
+                                <span>Target Scan Period (Δt):</span>
+                                <span id="valScan" class="font-mono text-blue-700">20 ms (50 Hz)</span>
+                            </div>
+                            <input type="range" id="sliderScan" min="10" max="50" step="5" value="20" oninput="updateParams()" class="w-full mt-1">
+                        </div>
+                    </div>
+
+                    <!-- Live Hardware Signals -->
+                    <div class="border-t pt-4">
+                        <div class="text-xs font-bold text-slate-700 uppercase mb-2">Live Process Image Tables</div>
+                        <div class="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                            <div id="io_DI_PE1" class="p-1.5 rounded bg-slate-100 border text-slate-600">PE1_Trigger: OFF</div>
+                            <div id="io_DI_S1" class="p-1.5 rounded bg-slate-100 border text-slate-600">S1_Defect: OFF</div>
+                            <div id="io_DI_LS_RET" class="p-1.5 rounded bg-green-100 border border-green-300 text-green-800 font-bold">LS_Retracted: ON</div>
+                            <div id="io_DI_LS_EXT" class="p-1.5 rounded bg-slate-100 border text-slate-600">LS_Extended: OFF</div>
+                            <div id="io_DO_MOTOR" class="p-1.5 rounded bg-green-100 border border-green-300 text-green-800 font-bold">DO_Conveyor: ON</div>
+                            <div id="io_DO_SOL" class="p-1.5 rounded bg-slate-100 border text-slate-600">DO_Pusher_Sol: OFF</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Simulation Canvas & Shift Register Visualizer -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="font-bold text-slate-800 text-sm">2D Physical Conveyor Cell Animation</h3>
+                            <div class="flex items-center space-x-2 text-xs">
+                                <span class="flex items-center"><span class="w-2.5 h-2.5 bg-emerald-500 rounded-full mr-1"></span> Good Part</span>
+                                <span class="flex items-center"><span class="w-2.5 h-2.5 bg-red-500 rounded-full mr-1"></span> Defective Part</span>
+                            </div>
+                        </div>
+                        <canvas id="conveyorCanvas" width="700" height="220" class="w-full bg-slate-900 rounded-lg shadow-inner border border-slate-800"></canvas>
+                    </div>
+
+                    <!-- Shift Register Array -->
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="font-bold text-slate-800 text-sm">Spatial Shift Register Tracker (150 Array Cells)</h3>
+                            <span id="shiftPeriodLabel" class="text-xs text-slate-500 font-mono">Shift Period: 20 ms</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mb-3">Downstream linear shift array. Highlighted cells indicate Infeed ($PE_1$), Inspection ($S_1$), Actuator Trigger Index ($149 - N_{lead}$), and Pusher ($A_1$).</p>
+                        
+                        <div id="shiftRegisterGrid" class="grid grid-cols-10 sm:grid-cols-15 md:grid-cols-25 gap-1 p-2 bg-slate-900 rounded-lg max-h-36 overflow-y-auto">
+                        </div>
+                    </div>
+
+                    <!-- Status Display -->
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                            <div class="text-xs text-slate-500 uppercase font-semibold">Pusher Actuator State</div>
+                            <div id="fsmStateBadge" class="text-base font-bold text-slate-800 font-mono mt-0.5 px-3 py-1 bg-slate-100 rounded inline-block border">IDLE</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-slate-500 uppercase font-semibold">Watchdog Timer</div>
+                            <div id="watchdogTimerText" class="text-base font-bold text-blue-700 font-mono mt-0.5">0.0 ms</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-slate-500 uppercase font-semibold">Safety Latched Interlock</div>
+                            <div id="safetyLatchBadge" class="text-base font-bold text-emerald-700 font-mono mt-0.5">HEALTHY</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- TAB 4: TELEMETRY & ANALYTICS -->
+        <section id="tab-analytics" class="tab-content hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-xl font-bold text-slate-900 mb-2">Production Telemetry & Quality KPIs</h2>
+                <p class="text-slate-600 text-sm mb-6">Real-time calculations of cell throughput, sorting capture rate ($\eta_{\text{capture}}$), and first-pass yield (FPY).</p>
+
+                <!-- KPI Metric Cards -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <div class="text-xs text-slate-500 font-semibold uppercase">Total Ingested</div>
+                        <div id="kpiTotal" class="text-2xl font-bold text-slate-900 mt-1">0</div>
+                        <div class="text-[11px] text-slate-500 mt-1">Workpieces</div>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <div class="text-xs text-slate-500 font-semibold uppercase">Throughput Rate</div>
+                        <div id="kpiPpm" class="text-2xl font-bold text-blue-600 mt-1">0.0</div>
+                        <div class="text-[11px] text-slate-500 mt-1">Parts-Per-Minute (PPM)</div>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <div class="text-xs text-slate-500 font-semibold uppercase">Capture Rate (η)</div>
+                        <div id="kpiCapture" class="text-2xl font-bold text-emerald-600 mt-1">100.0%</div>
+                        <div class="text-[11px] text-slate-500 mt-1">Diverted / Defects</div>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <div class="text-xs text-slate-500 font-semibold uppercase">First-Pass Yield (FPY)</div>
+                        <div id="kpiFpy" class="text-2xl font-bold text-purple-600 mt-1">100.0%</div>
+                        <div class="text-[11px] text-slate-500 mt-1">Output Purity (Good / Total Output)</div>
+                    </div>
+                </div>
+
+                <!-- DIAGNOSTIC & TELEMETRY EXPLANATION CARD -->
+                <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg mb-6 text-xs text-slate-700 leading-relaxed">
+                    <h3 class="font-bold text-amber-900 text-sm mb-1 flex items-center">
+                        <span class="mr-1.5">💡</span> Eliminating Quality Escapes using Lead Actuation Tuning
+                    </h3>
+                    <p class="mb-2">
+                        <strong>1. Why do Quality Escapes occur when $N_{\text{lead}} = 0$?</strong><br>
+                        Pneumatic actuators suffer from physical stroke latency ($t_{\text{ext}} = 120\text{ ms}$). If controller logic fires the solenoid only when a part is <em>already</em> at the physical pusher position ($x = 0.60\text{ m}$), the belt velocity ($v = 0.20\text{ m/s}$) carries the part off the belt before the cylinder finishes extending. This results in defective parts spilling into the Good Parts Bin as <strong>Quality Escapes (Red)</strong>.
+                    </p>
+                    <p>
+                        <strong>2. How does sliding $N_{\text{lead}}$ bring Quality Escapes to Zero?</strong><br>
+                        By moving the <strong>Lead Actuation Logic ($N_{\text{lead}}$) slider</strong> to match or auto-calculate optimal compensation ($N_{\text{lead}} = \frac{t_{\text{ext}}}{\Delta t} = 6\text{ cells}$), the PLC pre-triggers the solenoid 120 ms prior to part arrival. The cylinder reaches full extension exactly when the defective part aligns with the ejector, driving <strong>Defects Diverted to 100% and Quality Escapes to 0%</strong>!
+                    </p>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="font-bold text-slate-800 text-sm">Live Throughput & Defect Escapes Trend</h3>
+                            <button onclick="resetTelemetryOnly()" class="text-[11px] bg-slate-200 hover:bg-slate-300 px-2 py-1 rounded text-slate-700 font-semibold transition">Reset Plot</button>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="trendChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <h3 class="font-bold text-slate-800 text-sm mb-3">Quality Yield Breakdown (Good vs Diverted vs Escaped)</h3>
+                        <div class="chart-container">
+                            <canvas id="yieldChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Real-Time Event Log -->
+                <div class="bg-slate-900 p-4 rounded-lg border border-slate-800">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-bold text-white text-xs font-mono uppercase">PLC Sequential Event Log</h3>
+                        <button onclick="clearEventLog()" class="text-[10px] text-slate-400 hover:text-white underline">Clear Log</button>
+                    </div>
+                    <div id="eventLogConsole" class="h-40 overflow-y-auto font-mono text-xs text-green-400 space-y-1 custom-scrollbar">
+                        <div>[00.000s] [SYSTEM] PLC Logic initialized. Scan cycle period set to 20ms (50 Hz). Lead compensation enabled.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 5: STUDENT WORKSHEET & QUIZ -->
+        <section id="tab-worksheet" class="tab-content hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-xl font-bold text-slate-900 mb-2">Student Experimental Worksheet & Assessment</h2>
+                <p class="text-slate-600 text-sm mb-6">Perform the stress tests described in the lab manual, log telemetry data into Table 3, and complete the post-lab analytical questions.</p>
+
+                <!-- Data Collection Table -->
+                <h3 class="font-bold text-slate-800 text-md mb-3">Table 3: Experimental Telemetry Log</h3>
+                <div class="overflow-x-auto border rounded-lg border-slate-200 mb-8">
+                    <table class="w-full text-xs text-left">
+                        <thead class="bg-slate-100 text-slate-700 uppercase font-semibold border-b">
+                            <tr>
+                                <th class="p-3">Performance Metric</th>
+                                <th class="p-3">Run 1: Uncompensated (N_lead = 0)</th>
+                                <th class="p-3">Run 2: Optimal Lead (N_lead = 6)</th>
+                                <th class="p-3">Run 3: Over-Compensated (N_lead = 16)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200 font-mono">
+                            <tr>
+                                <td class="p-3 font-bold font-sans">Total Workpieces Ingested</td>
+                                <td class="p-3"><input type="text" placeholder="e.g. 25" class="w-full p-1 border rounded bg-slate-50"></td>
+                                <td class="p-3"><input type="text" placeholder="e.g. 25" class="w-full p-1 border rounded bg-slate-50"></td>
+                                <td class="p-3"><input type="text" placeholder="e.g. 25" class="w-full p-1 border rounded bg-slate-50"></td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-bold font-sans">Throughput Rate (PPM)</td>
+                                <td class="p-3"><input type="text" placeholder="e.g. 25.0" class="w-full p-1 border rounded bg-slate-50"></td>
+                                <td class="p-3"><input type="text" placeholder="e.g. 25.0" class="w-full p-1 border rounded bg-slate-50"></td>
+                                <td class="p-3"><input type="text" placeholder="e.g. 25.0" class="w-full p-1 border rounded bg-slate-50"></td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-bold font-sans text-red-600">Defect Capture Rate (η %)</td>
+                                <td class="p-3"><input type="text" placeholder="e.g. 0.0%" class="w-full p-1 border rounded bg-slate-50 text-red-700 font-bold"></td>
+                                <td class="p-3"><input type="text" placeholder="e.g. 100.0%" class="w-full p-1 border rounded bg-slate-50 text-emerald-700 font-bold"></td>
+                                <td class="p-3"><input type="text" placeholder="e.g. 0.0%" class="w-full p-1 border rounded bg-slate-50 text-amber-700 font-bold"></td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-bold font-sans text-purple-600">First-Pass Yield (FPY %)</td>
+                                <td class="p-3"><input type="text" placeholder="e.g. 70.0%" class="w-full p-1 border rounded bg-slate-50 text-purple-700 font-bold"></td>
+                                <td class="p-3"><input type="text" placeholder="e.g. 100.0%" class="w-full p-1 border rounded bg-slate-50 text-purple-700 font-bold"></td>
+                                <td class="p-3"><input type="text" placeholder="e.g. 70.0%" class="w-full p-1 border rounded bg-slate-50 text-purple-700 font-bold"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Self-Grading Quiz -->
+                <h3 class="font-bold text-slate-800 text-md mb-4">Post-Lab Analytical Assessment</h3>
+                <form id="quizForm" onsubmit="evaluateQuiz(event)" class="space-y-6">
+                    
+                    <div id="q1-container" class="p-4 bg-slate-50 rounded-lg border border-slate-200 transition-colors">
+                        <p class="font-semibold text-xs text-slate-800 mb-2">Q1: Why is using blocking sleep calls (such as time.sleep(0.12)) strictly prohibited inside PLC control logic?</p>
+                        <div class="space-y-1.5 text-xs text-slate-700">
+                            <label class="flex items-center space-x-2 p-1">
+                                <input type="radio" name="q1" value="a" class="text-blue-600">
+                                <span>A) It increases CPU consumption.</span>
+                            </label>
+                            <label class="flex items-center space-x-2 p-1">
+                                <input type="radio" name="q1" value="b" class="text-blue-600">
+                                <span>B) It blinds the controller to incoming sensor triggers and bypasses safety interlocks.</span>
+                            </label>
+                            <label class="flex items-center space-x-2 p-1">
+                                <input type="radio" name="q1" value="c" class="text-blue-600">
+                                <span>C) It causes the pneumatic cylinder to overheat.</span>
+                            </label>
+                        </div>
+                        <div id="q1-explanation" class="hidden mt-3"></div>
+                    </div>
+
+                    <div id="q2-container" class="p-4 bg-slate-50 rounded-lg border border-slate-200 transition-colors">
+                        <p class="font-semibold text-xs text-slate-800 mb-2">Q2: If belt speed v = 0.30 m/s and scan period Δt = 20 ms, what is the width of a single spatial cell Δx?</p>
+                        <div class="space-y-1.5 text-xs text-slate-700">
+                            <label class="flex items-center space-x-2 p-1">
+                                <input type="radio" name="q2" value="a" class="text-blue-600">
+                                <span>A) 2.0 mm</span>
+                            </label>
+                            <label class="flex items-center space-x-2 p-1">
+                                <input type="radio" name="q2" value="b" class="text-blue-600">
+                                <span>B) 6.0 mm</span>
+                            </label>
+                            <label class="flex items-center space-x-2 p-1">
+                                <input type="radio" name="q2" value="c" class="text-blue-600">
+                                <span>C) 15.0 mm</span>
+                            </label>
+                        </div>
+                        <div id="q2-explanation" class="hidden mt-3"></div>
+                    </div>
+
+                    <div id="q3-container" class="p-4 bg-slate-50 rounded-lg border border-slate-200 transition-colors">
+                        <p class="font-semibold text-xs text-slate-800 mb-2">Q3: What occurs when Actuation Lead Compensation $N_{\text{lead}}$ is set to 0 while stroke latency $t_{\text{ext}} = 120\text{ms}$?</p>
+                        <div class="space-y-1.5 text-xs text-slate-700">
+                            <label class="flex items-center space-x-2 p-1">
+                                <input type="radio" name="q3" value="a" class="text-blue-600">
+                                <span>A) The pusher extends late, causing defective parts to pass into the Good Bin (Quality Escapes).</span>
+                            </label>
+                            <label class="flex items-center space-x-2 p-1">
+                                <input type="radio" name="q3" value="b" class="text-blue-600">
+                                <span>B) The pusher jams mechanically.</span>
+                            </label>
+                            <label class="flex items-center space-x-2 p-1">
+                                <input type="radio" name="q3" value="c" class="text-blue-600">
+                                <span>C) The conveyor motor automatically reverses direction.</span>
+                            </label>
+                        </div>
+                        <div id="q3-explanation" class="hidden mt-3"></div>
+                    </div>
+
+                    <div class="flex items-center space-x-4">
+                        <button id="btnSubmitQuiz" type="submit" class="py-2 px-6 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow transition">
+                            SUBMIT ASSESSMENT
+                        </button>
+                        <div id="quizResult" class="text-xs font-bold text-slate-800"></div>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 text-xs py-4 border-t border-slate-800 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-2">
+            <div>MECH/ROBT 301 - Applied Industrial Automation & Robotics</div>
+            <div>© Applied Automation Lab | Interactive Digital Twin</div>
+        </div>
+    </footer>
+
+    <!-- JAVASCRIPT ENGINE & DIGITAL TWIN LOGIC -->
+    <script>
+        // System Parameters & Constants
+        let SCAN_TIME_S = 0.020;
+        let BELT_SPEED_M_S = 0.20;
+        let TRACKING_LENGTH_M = 0.60;
+        let STROKE_TIME_EXT_S = 0.120;
+        let STROKE_TIME_RET_S = 0.150;
+        let PUSHER_DWELL_S = 0.050;
+        let JAM_TIMEOUT_S = 0.300;
+
+        let NUM_CELLS = 150;
+        let INDEX_INSPECT = 25;
+        let INDEX_PUSHER = 149;
+
+        // Lead Actuation Logic Variables
+        let isAutoLead = true;
+        let manualLeadCells = 6;
+
+        // FSM States
+        const FSM = { IDLE: 0, EXTENDING: 1, DWELLING: 2, RETRACTING: 3, FAULT_JAMMED: 4 };
+        let pusherState = FSM.IDLE;
+        let pusherTimer = 0.0;
+        let watchdogTimer = 0.0;
+
+        // Hardware Inputs/Outputs
+        let DI_PE1_Trigger = false;
+        let DI_S1_Defect = false;
+        let DI_A1_Retracted_LS = true;
+        let DI_A1_Extended_LS = false;
+        let DI_Estop_NC = true;
+        let DI_Reset_PB = false;
+
+        let DO_Conveyor_Run = true;
+        let DO_A1_Extend_Sol = false;
+        let DO_Alarm_Beacon = false;
+        let safetyLatchedFault = false;
+
+        // Shift Register Array & Telemetry
+        let shiftRegister = new Array(150).fill(null);
+        let simTime = 0.0;
+        let isSimRunning = true;
+
+        let kpiTotalInfeed = 0;
+        let kpiDefectsGen = 0;
+        let kpiDefectsDiverted = 0;
+        let kpiGoodPassed = 0;
+        let kpiFalseRejects = 0;
+        let kpiEscapedDefects = 0;
+
+        let simPusherPos = 0.0;
+        let lastInfeedTime = -2.0;
+        let partSeqId = 100;
+
+        // Charts
+        let trendChart, yieldChart;
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(tabId).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('border-blue-500', 'text-white');
+                btn.classList.add('border-transparent');
+            });
+
+            const activeBtn = document.getElementById('nav-' + tabId);
+            if (activeBtn) {
+                activeBtn.classList.remove('border-transparent');
+                activeBtn.classList.add('border-blue-500', 'text-white');
+            }
+
+            if (tabId === 'tab-analytics' && trendChart && yieldChart) {
+                setTimeout(() => {
+                    trendChart.resize();
+                    trendChart.update();
+                    yieldChart.resize();
+                    yieldChart.update();
+                }, 50);
+            }
+        }
+
+        function getOptimalLeadCells() {
+            return Math.round(STROKE_TIME_EXT_S / SCAN_TIME_S);
+        }
+
+        function getEffectiveLeadCells() {
+            if (isAutoLead) {
+                return getOptimalLeadCells();
+            } else {
+                return manualLeadCells;
+            }
+        }
+
+        function toggleAutoLead() {
+            const chk = document.getElementById('chkAutoLead');
+            isAutoLead = chk.checked;
+            const container = document.getElementById('leadSliderContainer');
+            if (isAutoLead) {
+                container.classList.add('opacity-60', 'pointer-events-none');
+                logEvent("SYSTEM", "Lead Actuation Logic set to AUTO (Calculated based on stroke time & scan period).");
+            } else {
+                container.classList.remove('opacity-60', 'pointer-events-none');
+                logEvent("SYSTEM", "Lead Actuation Logic set to MANUAL OVERRIDE.");
+            }
+            updateParams(true);
+        }
+
+        function applyLeadPreset(preset) {
+            document.getElementById('chkAutoLead').checked = false;
+            toggleAutoLead();
+
+            const optimal = getOptimalLeadCells();
+            const slider = document.getElementById('sliderLead');
+
+            if (preset === 'zero') {
+                manualLeadCells = 0;
+            } else if (preset === 'optimal') {
+                manualLeadCells = optimal;
+            } else if (preset === 'early') {
+                manualLeadCells = Math.min(20, optimal + 10);
+            }
+
+            slider.value = manualLeadCells;
+            updateParams(true);
+        }
+
+        function runScanCycle() {
+            if (!isSimRunning) return;
+
+            simTime += SCAN_TIME_S;
+
+            updatePhysicalPlant();
+            executePlcLogic();
+
+            renderCanvas();
+            renderShiftRegisterGrid();
+            updateUI();
+        }
+
+        function updatePhysicalPlant() {
+            if (DO_Conveyor_Run && (simTime - lastInfeedTime > 1.6) && (Math.random() < 0.35)) {
+                DI_PE1_Trigger = true;
+                lastInfeedTime = simTime;
+            } else {
+                DI_PE1_Trigger = false;
+            }
+
+            if (DO_A1_Extend_Sol) {
+                simPusherPos = Math.min(1.0, simPusherPos + (SCAN_TIME_S / STROKE_TIME_EXT_S));
+            } else {
+                simPusherPos = Math.max(0.0, simPusherPos - (SCAN_TIME_S / STROKE_TIME_RET_S));
+            }
+
+            DI_A1_Extended_LS = (simPusherPos >= 0.98);
+            DI_A1_Retracted_LS = (simPusherPos <= 0.02);
+        }
+
+        function executePlcLogic() {
+            if (!DI_Estop_NC || pusherState === FSM.FAULT_JAMMED) {
+                safetyLatchedFault = true;
+            }
+
+            if (safetyLatchedFault) {
+                DO_Conveyor_Run = false;
+                DO_A1_Extend_Sol = false;
+                DO_Alarm_Beacon = true;
+
+                if (DI_Estop_NC && DI_Reset_PB) {
+                    safetyLatchedFault = false;
+                    pusherState = FSM.IDLE;
+                    watchdogTimer = 0.0;
+                    DO_Alarm_Beacon = false;
+                    DI_Reset_PB = false;
+                    logEvent("SAFETY", "Safety Interlock Reset acknowledged. System healthy.");
+                }
+                return;
+            } else {
+                DO_Conveyor_Run = true;
+                DO_Alarm_Beacon = false;
+            }
+
+            if (DO_Conveyor_Run) {
+                // Exit Part off end of belt
+                const exitPart = shiftRegister[NUM_CELLS - 1];
+                if (exitPart !== null) {
+                    if (exitPart.isDefect) {
+                        kpiEscapedDefects++;
+                        logEvent("ALARM", `Quality Escape! Defect Part #${exitPart.id} reached Good Bin (Late/Missed Strike)!`);
+                    } else {
+                        kpiGoodPassed++;
+                    }
+                }
+
+                // Shift Downstream
+                for (let i = NUM_CELLS - 1; i > 0; i--) {
+                    shiftRegister[i] = shiftRegister[i - 1];
+                }
+                shiftRegister[0] = null;
+
+                // Ingest New Part
+                if (DI_PE1_Trigger) {
+                    partSeqId++;
+                    kpiTotalInfeed++;
+                    const isDefect = (Math.random() < 0.35);
+                    if (isDefect) kpiDefectsGen++;
+
+                    shiftRegister[0] = { id: partSeqId, isDefect: isDefect };
+                    logEvent("INFEED", `Part #${partSeqId} ingested (Quality: ${isDefect ? 'DEFECTIVE' : 'GOOD'})`);
+                }
+
+                // Inspection Sensor S1 at Index 25
+                const inspectPart = shiftRegister[INDEX_INSPECT];
+                DI_S1_Defect = (inspectPart !== null && inspectPart.isDefect);
+            }
+
+            // Physical Ejection Physics: Dynamic paddle contact check across physical pusher zone
+            // Check pusher physical contact window (cells near pusher station: INDEX_PUSHER - 2 to INDEX_PUSHER)
+            if (simPusherPos >= 0.70) {
+                const pusherZoneStart = Math.max(0, INDEX_PUSHER - 2);
+                for (let idx = pusherZoneStart; idx <= INDEX_PUSHER; idx++) {
+                    const targetPart = shiftRegister[idx];
+                    if (targetPart !== null) {
+                        if (targetPart.isDefect) {
+                            kpiDefectsDiverted++;
+                            logEvent("REJECT", `Defect Part #${targetPart.id} successfully diverted to Scrap Bin!`);
+                        } else {
+                            kpiFalseRejects++;
+                            logEvent("WARNING", `False Reject! Good Part #${targetPart.id} mis-ejected due to early stroke timing!`);
+                        }
+                        shiftRegister[idx] = null; // Part knocked off conveyor into scrap bin
+                        break;
+                    }
+                }
+            }
+
+            // Dynamic Lead-Time Actuation Logic
+            const leadCells = getEffectiveLeadCells();
+            const triggerIndex = Math.max(0, INDEX_PUSHER - leadCells);
+            const partAtTrigger = shiftRegister[triggerIndex];
+
+            switch (pusherState) {
+                case FSM.IDLE:
+                    DO_A1_Extend_Sol = false;
+                    watchdogTimer = 0.0;
+                    if (partAtTrigger && partAtTrigger.isDefect) {
+                        pusherState = FSM.EXTENDING;
+                        pusherTimer = 0.0;
+                        logEvent("FSM", `Pre-triggering Pusher for Part #${partAtTrigger.id} at Cell ${triggerIndex} (N_lead = ${leadCells} cells)`);
+                    }
+                    break;
+
+                case FSM.EXTENDING:
+                    DO_A1_Extend_Sol = true;
+                    watchdogTimer += SCAN_TIME_S;
+                    if (watchdogTimer > JAM_TIMEOUT_S) {
+                        pusherState = FSM.FAULT_JAMMED;
+                        logEvent("FAULT", "Extension Watchdog Timeout - ACTUATOR JAMMED!");
+                    } else if (DI_A1_Extended_LS) {
+                        pusherState = FSM.DWELLING;
+                        pusherTimer = 0.0;
+                        watchdogTimer = 0.0;
+                    }
+                    break;
+
+                case FSM.DWELLING:
+                    DO_A1_Extend_Sol = true;
+                    pusherTimer += SCAN_TIME_S;
+                    if (pusherTimer >= PUSHER_DWELL_S) {
+                        pusherState = FSM.RETRACTING;
+                        pusherTimer = 0.0;
+                    }
+                    break;
+
+                case FSM.RETRACTING:
+                    DO_A1_Extend_Sol = false;
+                    watchdogTimer += SCAN_TIME_S;
+                    if (watchdogTimer > JAM_TIMEOUT_S) {
+                        pusherState = FSM.FAULT_JAMMED;
+                        logEvent("FAULT", "Retraction Watchdog Timeout - ACTUATOR JAMMED!");
+                    } else if (DI_A1_Retracted_LS) {
+                        pusherState = FSM.IDLE;
+                        watchdogTimer = 0.0;
+                    }
+                    break;
+            }
+        }
+
+        function renderCanvas() {
+            const canvas = document.getElementById('conveyorCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Belt Track
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(40, 100, 620, 24);
+
+            if (DO_Conveyor_Run) {
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 2;
+                const offset = (simTime * 100) % 20;
+                for (let x = 40 + offset; x < 660; x += 20) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 100);
+                    ctx.lineTo(x - 10, 124);
+                    ctx.stroke();
+                }
+            }
+
+            // Sensors & Actuators
+            ctx.fillStyle = '#3b82f6';
+            ctx.fillRect(45, 75, 10, 25);
+            ctx.fillText("PE1", 42, 68);
+
+            ctx.fillStyle = DI_S1_Defect ? '#ef4444' : '#10b981';
+            ctx.fillRect(140, 75, 10, 25);
+            ctx.fillText("S1", 140, 68);
+
+            const strokeY = 124 + (simPusherPos * 40);
+            ctx.fillStyle = (pusherState === FSM.FAULT_JAMMED) ? '#dc2626' : '#f59e0b';
+            ctx.fillRect(590, 124, 30, strokeY - 124);
+            ctx.fillRect(580, strokeY, 50, 12);
+            ctx.fillText("A1 Pusher", 575, 80);
+
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(570, 180, 70, 30);
+            ctx.fillStyle = '#fca5a5';
+            ctx.fillText("Scrap Bin", 580, 200);
+
+            // Workpieces on belt
+            for (let i = 0; i < NUM_CELLS; i++) {
+                const part = shiftRegister[i];
+                if (part) {
+                    const posX = 50 + (i / NUM_CELLS) * 550;
+                    ctx.beginPath();
+                    ctx.arc(posX, 112, 8, 0, Math.PI * 2);
+                    ctx.fillStyle = part.isDefect ? '#ef4444' : '#10b981';
+                    ctx.fill();
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+            }
+        }
+
+        function renderShiftRegisterGrid() {
+            const grid = document.getElementById('shiftRegisterGrid');
+            const leadCells = getEffectiveLeadCells();
+            const triggerIndex = Math.max(0, INDEX_PUSHER - leadCells);
+
+            if (grid.children.length === 0) {
+                for (let i = 0; i < NUM_CELLS; i++) {
+                    const cell = document.createElement('div');
+                    cell.id = `cell-${i}`;
+                    cell.className = 'h-5 rounded text-[9px] flex items-center justify-center font-mono font-bold transition-colors';
+                    grid.appendChild(cell);
+                }
+            }
+
+            for (let i = 0; i < NUM_CELLS; i++) {
+                const cell = document.getElementById(`cell-${i}`);
+                const part = shiftRegister[i];
+
+                if (i === 0) {
+                    cell.className = part ? (part.isDefect ? 'h-5 rounded text-[9px] flex items-center justify-center font-mono font-bold bg-red-600 text-white border-2 border-blue-400' : 'h-5 rounded text-[9px] flex items-center justify-center font-mono font-bold bg-emerald-600 text-white border-2 border-blue-400') : 'h-5 rounded text-[9px] flex items-center justify-center font-mono font-bold bg-slate-800 text-slate-400 border border-blue-500';
+                    cell.textContent = 'PE1';
+                } else if (i === INDEX_INSPECT) {
+                    cell.className = part ? (part.isDefect ? 'h-5 rounded text-[9px] flex items-center justify-center font-mono font-bold bg-red-600 text-white border-2 border-purple-400' : 'h-5 rounded text-[9px] flex items-center justify-center font-mono font-bold bg-emerald-600 text-white border-2 border-purple-400') : 'h-5 rounded text-[9px] flex items-center justify-center font-mono font-bold bg-slate-800 text-slate-400 border border-purple-500';
+                    cell.textContent = 'S1';
+                } else if (i === triggerIndex) {
+                    cell.className = part ? (part.isDefect ? 'h-5 rounded text-[9px] flex items-center justify-center font-mono font-bold bg-red-600 text-white border-2 border-amber-400 animate-pulse' : 'h-5 rounded text-[9px] flex items-center justify-center font-mono font-bold bg-emerald-600 text-white border-2 border-amber-400') : 'h-5 rounded text-[9px] flex items-center justify-center font-mono font-bold bg-slate-800 text-amber-300 border border-amber-500';
+                    cell.textContent = 'TRIG';
+                } else if (i === INDEX_PUSHER) {
+                    cell.className = part ? (part.isDefect ? 'h-5 rounded text-[9px] flex items-center justify-center font-mono font-bold bg-red-600 text-white border-2 border-red-400' : 'h-5 rounded text-[9px] flex items-center justify-center font-mono font-bold bg-emerald-600 text-white border-2 border-red-400') : 'h-5 rounded text-[9px] flex items-center justify-center font-mono font-bold bg-slate-800 text-slate-400 border border-red-500';
+                    cell.textContent = 'A1';
+                } else {
+                    if (part) {
+                        cell.className = part.isDefect ? 'h-5 rounded text-[9px] flex items-center justify-center font-mono font-bold bg-red-500 text-white' : 'h-5 rounded text-[9px] flex items-center justify-center font-mono font-bold bg-emerald-500 text-white';
+                        cell.textContent = part.id % 100;
+                    } else {
+                        cell.className = 'h-5 rounded text-[9px] flex items-center justify-center font-mono font-bold bg-slate-800 text-slate-600';
+                        cell.textContent = i;
+                    }
+                }
+            }
+        }
+
+        function updateUI() {
+            const statusBadge = document.getElementById('statusBadge');
+            const statusText = document.getElementById('statusText');
+            if (safetyLatchedFault) {
+                statusBadge.className = "flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-bold bg-red-950 text-red-400 border border-red-700";
+                statusText.textContent = pusherState === FSM.FAULT_JAMMED ? "ACTUATOR JAM FAULT" : "E-STOP TRIPPED";
+            } else if (!isSimRunning) {
+                statusBadge.className = "flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-950 text-amber-400 border border-amber-700";
+                statusText.textContent = "PLC PAUSED";
+            } else {
+                statusBadge.className = "flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-bold bg-green-950 text-green-400 border border-green-700";
+                statusText.textContent = `PLC RUNNING (${(1/SCAN_TIME_S).toFixed(0)} Hz)`;
+            }
+
+            const states = ["IDLE", "EXTENDING", "DWELLING", "RETRACTING", "FAULT_JAMMED"];
+            const badge = document.getElementById('fsmStateBadge');
+            badge.textContent = states[pusherState];
+            badge.className = (pusherState === FSM.FAULT_JAMMED) ? 'text-base font-bold text-red-600 font-mono mt-0.5 px-3 py-1 bg-red-100 rounded inline-block border border-red-300' : 'text-base font-bold text-blue-700 font-mono mt-0.5 px-3 py-1 bg-blue-50 rounded inline-block border border-blue-200';
+
+            document.getElementById('watchdogTimerText').textContent = (watchdogTimer * 1000).toFixed(0) + " ms";
+            document.getElementById('safetyLatchBadge').textContent = safetyLatchedFault ? "TRIPPED" : "HEALTHY";
+            document.getElementById('safetyLatchBadge').className = safetyLatchedFault ? "text-base font-bold text-red-600 font-mono mt-0.5" : "text-base font-bold text-emerald-600 font-mono mt-0.5";
+
+            setIOIndicator('io_DI_PE1', 'PE1_Trigger', DI_PE1_Trigger);
+            setIOIndicator('io_DI_S1', 'S1_Defect', DI_S1_Defect);
+            setIOIndicator('io_DI_LS_RET', 'LS_Retracted', DI_A1_Retracted_LS);
+            setIOIndicator('io_DI_LS_EXT', 'LS_Extended', DI_A1_Extended_LS);
+            setIOIndicator('io_DO_MOTOR', 'DO_Conveyor', DO_Conveyor_Run);
+            setIOIndicator('io_DO_SOL', 'DO_Pusher_Sol', DO_A1_Extend_Sol);
+
+            const ppm = simTime > 0 ? (kpiTotalInfeed / simTime * 60) : 0;
+            const totalDefectsEncountered = kpiDefectsDiverted + kpiEscapedDefects;
+            const captureRate = totalDefectsEncountered > 0 ? (kpiDefectsDiverted / totalDefectsEncountered * 100) : 100;
+            
+            const totalPassedToGoodBin = kpiGoodPassed + kpiEscapedDefects;
+            const fpy = totalPassedToGoodBin > 0 ? (kpiGoodPassed / totalPassedToGoodBin * 100) : 100;
+
+            document.getElementById('kpiTotal').textContent = kpiTotalInfeed;
+            document.getElementById('kpiPpm').textContent = ppm.toFixed(1);
+            document.getElementById('kpiCapture').textContent = captureRate.toFixed(1) + "%";
+            document.getElementById('kpiFpy').textContent = fpy.toFixed(1) + "%";
+
+            // Update Lead Status Badge
+            const leadCells = getEffectiveLeadCells();
+            const optimal = getOptimalLeadCells();
+            const badgeEl = document.getElementById('leadStatusBadge');
+
+            if (leadCells === optimal) {
+                badgeEl.textContent = "OPTIMAL";
+                badgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-600 text-white";
+            } else if (leadCells < optimal) {
+                badgeEl.textContent = `LATE (-${optimal - leadCells} cells)`;
+                badgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-red-600 text-white animate-pulse";
+            } else {
+                badgeEl.textContent = `EARLY (+${leadCells - optimal} cells)`;
+                badgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-amber-600 text-white";
+            }
+
+            // High frequency chart updates (every 10 scan cycles / 200 ms)
+            if (Math.floor(simTime / SCAN_TIME_S) % 10 === 0) {
+                updateCharts(ppm, kpiGoodPassed, kpiDefectsDiverted, kpiEscapedDefects);
+            }
+        }
+
+        function setIOIndicator(elementId, label, state) {
+            const el = document.getElementById(elementId);
+            if (state) {
+                el.className = "p-1.5 rounded bg-green-100 border border-green-300 text-green-800 font-bold";
+                el.textContent = `${label}: ON`;
+            } else {
+                el.className = "p-1.5 rounded bg-slate-100 border text-slate-500";
+                el.textContent = `${label}: OFF`;
+            }
+        }
+
+        function logEvent(cat, msg) {
+            const consoleEl = document.getElementById('eventLogConsole');
+            const timeStr = simTime.toFixed(3);
+            const line = document.createElement('div');
+            line.textContent = `[${timeStr}s] [${cat}] ${msg}`;
+            consoleEl.appendChild(line);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        function clearEventLog() {
+            document.getElementById('eventLogConsole').innerHTML = '';
+        }
+
+        function toggleRun() {
+            isSimRunning = !isSimRunning;
+            document.getElementById('btnToggleRun').textContent = isSimRunning ? "PAUSE CELL" : "RESUME CELL";
+        }
+
+        function toggleEstop() {
+            DI_Estop_NC = !DI_Estop_NC;
+            logEvent("SAFETY", DI_Estop_NC ? "Emergency Stop button released." : "EMERGENCY STOP BUTTON DEPRESSED!");
+            updateUI();
+        }
+
+        function injectActuatorJam() {
+            pusherState = FSM.FAULT_JAMMED;
+            logEvent("FAULT", "Manual Fault Injection: Mechanical Actuator Jammed!");
+            updateUI();
+        }
+
+        function resetSafetyInterlock() {
+            DI_Reset_PB = true;
+            updateUI();
+        }
+
+        function manualSpawnPart() {
+            if (!DO_Conveyor_Run) {
+                logEvent("SYSTEM", "Cannot spawn part while Conveyor is stopped or in E-Stop fault.");
+                return;
+            }
+            partSeqId++;
+            kpiTotalInfeed++;
+            const isDefect = (Math.random() < 0.40);
+            if (isDefect) kpiDefectsGen++;
+
+            shiftRegister[0] = { id: partSeqId, isDefect: isDefect };
+            lastInfeedTime = simTime;
+            logEvent("INFEED", `Manual Infeed: Part #${partSeqId} ingested (Quality: ${isDefect ? 'DEFECTIVE' : 'GOOD'})`);
+            updateUI();
+        }
+
+        function resetTelemetryOnly() {
+            kpiTotalInfeed = 0;
+            kpiDefectsGen = 0;
+            kpiDefectsDiverted = 0;
+            kpiGoodPassed = 0;
+            kpiFalseRejects = 0;
+            kpiEscapedDefects = 0;
+
+            if (trendChart) {
+                trendChart.data.labels = [];
+                trendChart.data.datasets[0].data = [];
+                trendChart.data.datasets[1].data = [];
+                trendChart.data.datasets[2].data = [];
+                trendChart.update();
+            }
+            if (yieldChart) {
+                yieldChart.data.datasets[0].data = [0, 0, 0];
+                yieldChart.update();
+            }
+            logEvent("SYSTEM", "Telemetry plot counters reset for new parameter run.");
+        }
+
+        function resetSimulation() {
+            shiftRegister.fill(null);
+            simTime = 0.0;
+            lastInfeedTime = -2.0;
+            pusherState = FSM.IDLE;
+            simPusherPos = 0.0;
+            watchdogTimer = 0.0;
+            safetyLatchedFault = false;
+            DI_Estop_NC = true;
+
+            resetTelemetryOnly();
+            updateUI();
+        }
+
+        function updateParams(resetMetrics = true) {
+            BELT_SPEED_M_S = parseFloat(document.getElementById('sliderSpeed').value);
+            STROKE_TIME_EXT_S = parseInt(document.getElementById('sliderStroke').value) / 1000.0;
+            SCAN_TIME_S = parseInt(document.getElementById('sliderScan').value) / 1000.0;
+
+            if (!isAutoLead) {
+                manualLeadCells = parseInt(document.getElementById('sliderLead').value);
+            }
+
+            document.getElementById('valSpeed').textContent = BELT_SPEED_M_S.toFixed(2) + " m/s";
+            document.getElementById('valStroke').textContent = (STROKE_TIME_EXT_S * 1000).toFixed(0) + " ms";
+            document.getElementById('valScan').textContent = (SCAN_TIME_S * 1000).toFixed(0) + " ms (" + (1/SCAN_TIME_S).toFixed(0) + " Hz)";
+
+            const cellWidth = BELT_SPEED_M_S * SCAN_TIME_S;
+            NUM_CELLS = Math.floor(TRACKING_LENGTH_M / cellWidth);
+            INDEX_INSPECT = Math.floor(0.10 / cellWidth);
+            INDEX_PUSHER = NUM_CELLS - 1;
+
+            const optimalLead = getOptimalLeadCells();
+            const effectiveLead = getEffectiveLeadCells();
+
+            if (isAutoLead) {
+                document.getElementById('sliderLead').value = optimalLead;
+                document.getElementById('valLead').textContent = `${optimalLead} Cells (${(optimalLead * SCAN_TIME_S * 1000).toFixed(0)}ms)`;
+            } else {
+                document.getElementById('valLead').textContent = `${manualLeadCells} Cells (${(manualLeadCells * SCAN_TIME_S * 1000).toFixed(0)}ms)`;
+            }
+
+            document.getElementById('mathLeadText').textContent = `N_lead = ${effectiveLead} Cells`;
+            document.getElementById('mathLeadSubtext').textContent = isAutoLead ? `Optimal pre-trigger stroke lag (${(optimalLead * SCAN_TIME_S * 1000).toFixed(0)} ms)` : `Manual override: ${(effectiveLead * SCAN_TIME_S * 1000).toFixed(0)} ms lead`;
+
+            shiftRegister = new Array(NUM_CELLS).fill(null);
+            document.getElementById('shiftRegisterGrid').innerHTML = '';
+
+            if (resetMetrics) {
+                resetTelemetryOnly();
+            }
+        }
+
+        function initCharts() {
+            const ctxTrend = document.getElementById('trendChart').getContext('2d');
+            trendChart = new Chart(ctxTrend, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Throughput (PPM)',
+                            data: [],
+                            borderColor: '#2563eb',
+                            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 2,
+                            fill: true,
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Defects Diverted (Scrap)',
+                            data: [],
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            pointRadius: 2,
+                            fill: false,
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Quality Escapes (Defects Missed)',
+                            data: [],
+                            borderColor: '#ef4444',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            pointRadius: 2,
+                            fill: false,
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { 
+                            beginAtZero: true,
+                            grid: { color: 'rgba(226, 232, 240, 0.8)' }
+                        },
+                        x: {
+                            grid: { color: 'rgba(226, 232, 240, 0.8)' }
+                        }
+                    }
+                }
+            });
+
+            const ctxYield = document.getElementById('yieldChart').getContext('2d');
+            yieldChart = new Chart(ctxYield, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Good Passed', 'Defects Diverted', 'Quality Escapes'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateCharts(ppm, good, diverted, escaped) {
+            if (!trendChart || !yieldChart) return;
+
+            const labelStr = simTime.toFixed(1) + 's';
+
+            trendChart.data.labels.push(labelStr);
+            trendChart.data.datasets[0].data.push(parseFloat(ppm.toFixed(1)));
+            trendChart.data.datasets[1].data.push(diverted);
+            trendChart.data.datasets[2].data.push(escaped);
+
+            if (trendChart.data.labels.length > 20) {
+                trendChart.data.labels.shift();
+                trendChart.data.datasets[0].data.shift();
+                trendChart.data.datasets[1].data.shift();
+                trendChart.data.datasets[2].data.shift();
+            }
+            trendChart.update('none');
+
+            // Force donut chart update to reflect live quality escape ratio
+            yieldChart.data.datasets[0].data = [good, diverted, escaped];
+            yieldChart.update('none');
+        }
+
+        function evaluateQuiz(e) {
+            e.preventDefault();
+            const form = new FormData(e.target);
+            let score = 0;
+            
+            // Correct answers mapped to the questions
+            const answers = { q1: 'b', q2: 'b', q3: 'a' };
+            
+            // Detailed explanations to show after submission
+            const explanations = {
+                q1: "Blocking calls like <code>time.sleep()</code> halt the entire PLC scan cycle. This blinds the controller, meaning it cannot process high-priority emergency inputs (like an E-Stop) or fast-moving sensor triggers (like photo-eyes) until the sleep finishes.",
+                q2: "Using the formula from Tab 2: <strong>Δx = v × Δt</strong>. <br>Δx = 0.30 m/s × 0.020 s = 0.006 m. <br>0.006 meters converts to <strong>6.0 mm</strong>.",
+                q3: "Without lead compensation (N_lead = 0), the actuator's logic fires exactly when the part arrives. However, because physical extension takes 120ms, the actuator extends late, and the part passes by into the Good Bin (Quality Escape)."
+            };
+
+            // Loop through each question to evaluate, style, and inject explanations
+            ['q1', 'q2', 'q3'].forEach(q => {
+                const selected = form.get(q);
+                const correct = answers[q];
+                const qContainer = document.getElementById(q + '-container');
+                const expDiv = document.getElementById(q + '-explanation');
+                const labels = qContainer.querySelectorAll('label');
+
+                // Calculate Score
+                if (selected === correct) {
+                    if (q === 'q3') score += 33.4; // Round up to 100 total
+                    else score += 33.3;
+                }
+
+                // Update UI: Disable inputs & Highlight Correct/Incorrect answers
+                labels.forEach(label => {
+                    const input = label.querySelector('input');
+                    input.disabled = true; // Lock the quiz
+                    
+                    if (input.value === correct) {
+                        // Highlight the correct answer in Green
+                        label.classList.add('bg-green-100', 'border-green-400', 'border', 'rounded');
+                        label.classList.remove('text-slate-700');
+                        label.classList.add('text-green-800', 'font-bold');
+                    } else if (input.value === selected && selected !== correct) {
+                        // Highlight the student's incorrect choice in Red
+                        label.classList.add('bg-red-100', 'border-red-400', 'border', 'rounded');
+                        label.classList.remove('text-slate-700');
+                        label.classList.add('text-red-800', 'font-bold');
+                    }
+                });
+
+                // Inject and display the explanation box
+                expDiv.classList.remove('hidden');
+                if (selected === correct) {
+                    expDiv.innerHTML = `<strong>Correct!</strong> ${explanations[q]}`;
+                    expDiv.className = "mt-3 text-[11px] text-green-700 bg-green-50 p-2.5 rounded border border-green-200 leading-relaxed";
+                } else {
+                    expDiv.innerHTML = `<strong>Incorrect.</strong> ${explanations[q]}`;
+                    expDiv.className = "mt-3 text-[11px] text-red-700 bg-red-50 p-2.5 rounded border border-red-200 leading-relaxed";
+                }
+            });
+
+            // Update Total Score Display
+            const res = document.getElementById('quizResult');
+            res.textContent = `Score: ${score.toFixed(0)} / 100 points (${score > 70 ? 'PASSED' : 'RE-TRY'})`;
+            res.className = score > 70 ? "text-xs font-bold text-emerald-600" : "text-xs font-bold text-red-600";
+            
+            // Disable the submit button
+            const submitBtn = document.getElementById('btnSubmitQuiz');
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            submitBtn.textContent = "ASSESSMENT SUBMITTED";
+        }
+
+        window.onload = function() {
+            initCharts();
+            setInterval(runScanCycle, 20);
+        };
+    </script>
+</body>
+</html>
