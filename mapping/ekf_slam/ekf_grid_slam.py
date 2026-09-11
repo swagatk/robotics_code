@@ -8,9 +8,9 @@ from matplotlib.patches import Polygon, Ellipse
 
 # 1. INITIAL POSE UNCERTAINTY & DELIBERATE INITIAL OFFSET
 # Introduce an intentional initial error to watch the EKF correct itself:
-INITIAL_X_ERROR     = 1.5    # meters offset in X
-INITIAL_Y_ERROR     = -1.2   # meters offset in Y
-INITIAL_THETA_ERROR = np.radians(25.0)  # heading error in degrees
+INITIAL_X_ERROR     = 5.5    # meters offset in X
+INITIAL_Y_ERROR     = -5.2   # meters offset in Y
+INITIAL_THETA_ERROR = np.radians(45.0)  # heading error in degrees
 
 # Initial Belief Covariance P_0 (How unsure the robot thinks it is initially):
 INIT_POS_SIGMA      = 1.5    # meters (std dev)
@@ -82,7 +82,9 @@ class ReactiveNavigator:
     def __init__(self):
         self.state = "NAVIGATING"
         self.recovery_ticks = 0
-        self.preferred_turn = 1.0
+        self.max_turn = 0.5
+        self.preferred_turn = self.max_turn
+     
 
     def compute_control(self, x, y, theta):
         angles = np.linspace(-np.pi/2, np.pi/2, 11)
@@ -104,15 +106,15 @@ class ReactiveNavigator:
         if d_center < CRITICAL_DIST or min(d_left, d_right) < 0.65:
             self.state = "BACKUP_TURN"
             self.recovery_ticks = 15
-            self.preferred_turn = 1.0 if d_left > d_right else -1.0
+            self.preferred_turn = self.max_turn if d_left > d_right else -self.max_turn
             return -0.2, self.preferred_turn * 1.6
 
         v = 0.6
         if d_center < WARN_DIST or d_left < WARN_DIST or d_right < WARN_DIST:
             v = 0.25 * (d_center / WARN_DIST)
-            w = 1.2 if d_left > d_right else -1.2
+            w = self.max_turn if d_left > d_right else -self.max_turn
         else:
-            w = 0.15
+            w = 0.15 * self.max_turn
 
         return max(v, 0.1), w
 
@@ -130,39 +132,44 @@ class RobotEKF:
         self.R = np.diag([SENSOR_RANGE_STD**2, SENSOR_BEARING_STD**2])
 
     def predict(self, v, w, dt):
+        # next robot pose
         th = self.mu[2]
         self.mu[0] += v * np.cos(th) * dt
         self.mu[1] += v * np.sin(th) * dt
         self.mu[2] = (self.mu[2] + w * dt + np.pi) % (2 * np.pi) - np.pi
 
+        # Jacobian of the motion model with respect to the state
         Fx = np.array([
             [1.0, 0.0, -v * np.sin(th) * dt],
             [0.0, 1.0,  v * np.cos(th) * dt],
             [0.0, 0.0,  1.0]
         ])
+        # Update the error covariance based on the motion model
         self.P = Fx @ self.P @ Fx.T + self.Q
 
     def update(self, z_measurements):
+        # Update the state and covariance based on the measurements
         for z, lm in z_measurements:
             dx = lm[0] - self.mu[0]
             dy = lm[1] - self.mu[1]
             q = dx**2 + dy**2
             d = np.sqrt(q)
-
+            # Expected measurement based on the current state estimate
             expected_bearing = (np.arctan2(dy, dx) - self.mu[2] + np.pi) % (2*np.pi) - np.pi
             z_hat = np.array([d, expected_bearing])
-
+            # Innovation (measurement residual)
             y = z - z_hat
             y[1] = (y[1] + np.pi) % (2 * np.pi) - np.pi
-
+            # Jacobian of the measurement model with respect to the state
             H = np.array([
                 [-dx / d, -dy / d,  0.0],
                 [ dy / q, -dx / q, -1.0]
             ])
-
+            # Innovation covariance
             S = H @ self.P @ H.T + self.R
             K = self.P @ H.T @ np.linalg.inv(S)
-
+            # Kalman gain
+            # Update the state estimate and covariance based on the measurement
             self.mu = self.mu + K @ y
             self.mu[2] = (self.mu[2] + np.pi) % (2 * np.pi) - np.pi
             self.P = (np.eye(3) - K @ H) @ self.P
@@ -185,14 +192,16 @@ class OccupancyGrid2D:
     def update_ray(self, x0, y0, x1, y1, hit):
         gx0, gy0 = self.to_grid(x0, y0)
         gx1, gy1 = self.to_grid(x1, y1)
-
+        # Compute the discrete points along the ray using Bresenham's line algorithm approximation
         steps = int(max(abs(gx1 - gx0), abs(gy1 - gy0), 1))
         xs = np.linspace(gx0, gx1, steps + 1, dtype=int)
         ys = np.linspace(gy0, gy1, steps + 1, dtype=int)
 
+        # Determine which grid cells are valid (inside the grid boundaries)
         valid = (xs >= 0) & (xs < self.dim) & (ys >= 0) & (ys < self.dim)
         self.grid[ys[valid][:-1], xs[valid][:-1]] = np.minimum(self.grid[ys[valid][:-1], xs[valid][:-1]] + 0.1, 0.95)
 
+        # Update the occupancy grid based on the ray tracing result
         if hit and valid[-1]:
             self.grid[ys[valid][-1], xs[valid][-1]] = 0.0
 
