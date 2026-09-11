@@ -1,4 +1,4 @@
-import numpy as np
+import numpy as np# Step 1: Update the systemIn
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon, Ellipse
 
